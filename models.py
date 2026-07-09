@@ -12,7 +12,7 @@ def solve_IFS(data):
     model = gb.Model("IFS")
     model.Params.OutputFlag = 1
 
-    x = model.addvars(data['I'], data['K'], vtype=GRB.BINARY, name="x")
+    x = model.addVars(data['I'], data['K'], vtype=GRB.BINARY, name="x")
 
     obj = gb.LinExpr()
 
@@ -22,7 +22,7 @@ def solve_IFS(data):
         p_non_transf = data['e'][i] + data['f'][i]
 
         for k in data['K_g'][i]:
-            c = (d_aveto * p_to + d_avefrom * p_from + data['ed'][k] * p_non_transf)
+            c = (d_aveto[k] * p_to + d_avefrom[k] * p_from + data['ed'][k] * p_non_transf)
             obj.addTerms(c, x[i,k])
 
     model.setObjective(obj,GRB.MINIMIZE)
