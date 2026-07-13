@@ -21,6 +21,7 @@ FERRY_SCHEDULES = {
 }
 
 def get_dataset(group_type, num_patients, seed=42):
+    """Genera e restituisce il dataset direttamente come dizionario Python in RAM"""
     random.seed(seed)
     
     if group_type == "A":
@@ -33,15 +34,15 @@ def get_dataset(group_type, num_patients, seed=42):
     node_counter = 1
     
     for p_id in range(1, num_patients + 1):
-        region = random.choices(regions, weights=weights)[0] 
-        num_visits = 1 if random.random() < 0.70 else 2 #1 o 2 visite per paziente
+        region = random.choices(regions, weights=weights)[0]
+        num_visits = 1 if random.random() < 0.70 else 2
         
         p_visits = []
         for v_num in range(1, num_visits + 1):
             duration = random.choice([15, 30, 45, 60])
             tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
             start_tw = random.randint(to_min(8, 0), to_min(16, 0))
-            cg_count = 1 if random.random() < 0.70 else 2 #max 2 cg per patient
+            cg_count = 1 if random.random() < 0.70 else 2
             total_caregiver_visits_needed += cg_count
             
             # Skill matching (regole del paper)
@@ -66,7 +67,7 @@ def get_dataset(group_type, num_patients, seed=42):
                 "node_id": node_counter,
                 "duration": duration,
                 "start_tw": start_tw,
-                "end_tw" : min(start_tw + tw_size, to_min(17, 0)),
+                "end_tw": start_tw + tw_size,
                 "caregivers_count": cg_count,
                 "skill_requirements": req_skills
             })
@@ -74,11 +75,10 @@ def get_dataset(group_type, num_patients, seed=42):
             
         patients.append({"id": p_id, "region": region, "visits": p_visits})
 
-    #caregivers
     num_caregivers = math.ceil(total_caregiver_visits_needed / 7)
     caregivers = []
     qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"nurse": 3, "assistant": 2, "health_aid": 1} #Table 1
+    priorities = {"nurse": 3, "assistant": 2, "health_aid": 1}
     
     for c_id in range(1, num_caregivers + 1):
         qual = qualifications[(c_id - 1) % 3]
@@ -92,9 +92,6 @@ def get_dataset(group_type, num_patients, seed=42):
         })
 
     # Matrice dei tempi con chiavi tuple nativa (l1, l2) invece di stringhe "l1,l2"
-    # REMIND: la funzione che crea gli archi validi (la tua implementazione dell'Appendice A) consulti il region_mapping 
-    # e consenta passaggi diretti tramite driving_matrix solo se region_mapping[l1] == region_mapping[l2]
-    
     driving_matrix = {}
     locations = ["Center"] + [f"P_{p['id']}" for p in patients]
     avg_dt = 15 if group_type == "A" else 10
