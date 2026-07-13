@@ -155,6 +155,9 @@ def create_milp_model(data, subgraph_nodes=None):
     # Traghetti: ("F_1->2", departure_time) -> (Rotta, Orario_Partenza)
     # Depot: ("Center", 1) e ("Center", 2)
     all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements = build_graph(data)
+
+    valid_arcs = list(set(valid_arcs))
+    all_nodes = list(set(all_nodes))
     
     if subgraph_nodes is not None:
         all_nodes = [n for n in all_nodes if n in subgraph_nodes]

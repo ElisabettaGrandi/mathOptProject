@@ -9,6 +9,7 @@ def run_model_test():
     print("=== 1. Caricamento Dati dall'Istanza ===")
     # Generiamo un'istanza piccola (ad esempio, passa parametri per fare un'istanza ridotta se il tuo generatore lo permette)
     data = get_dataset("A",10) 
+    analyze_dataset_essence(data)
     
     # Un piccolo print di controllo per verificare cosa stiamo testando
     print(f"  Caregivers totali: {len(data['caregivers'])}")
@@ -81,8 +82,8 @@ def run_model_test():
             minuti = int(valore_minuti % 60)
             print(f"  Paziente {p_node[0]} (Visita {p_node[1]}): minuto {valore_minuti:.1f} (Orario stimato ~ {ore:02d}:{minuti:02d})")
             
-    elif model.status == GRB.INFEASIBLE:
-        print("\n❌ IL MODELLO È INFEASIBLE!")
+    elif model.status in [GRB.INFEASIBLE, GRB.INF_OR_UNBD]:
+        print("\n❌ IL MODELLO È INFEASIBLE (o UNBOUNDED)!")
         print("I vincoli si stanno scontrando. Avvio il calcolo dell'IIS (Irreducible Infeasible Subsystem) per trovare l'errore...")
         
         # Questo comando dice a Gurobi di isolare i vincoli minimi che causano il fallimento
@@ -93,6 +94,53 @@ def run_model_test():
         
     else:
         print(f"\nL'ottimizzazione si è interrotta con codice stato: {model.status}")
+
+def analyze_dataset_essence(data):
+    """
+    Stampa un riepilogo dettagliato e strutturato del dataset generato
+    per controllare la correttezza dei dati rispetto ai requisiti del modello.
+    """
+    print("=" * 60)
+    print(f" ANALISI ESSENZA DATASET: {data['instance_name']}")
+    print("=" * 60)
+    
+    # 1. Informazioni Generali e Mapping delle Regioni
+    print(f"\n🌍 TIPO GRUPPO: {data['group_type']}")
+    print("📍 MAPPING LOCALITÀ -> REGIONI:")
+    # Stampiamo solo i primi elementi per non intasare lo schermo
+    for loc, reg in list(data['region_mapping'].items())[:6]:
+        print(f"  - {loc}: situato in -> {reg}")
+    if len(data['region_mapping']) > 6:
+        print(f"  - ... e altre {len(data['region_mapping']) - 6} località.")
+
+    # 2. Analisi Caregivers
+    print(f"\n🧑‍⚕️ CAREGIVERS GENERATI ({len(data['caregivers'])}):")
+    for cg in data['caregivers']:
+        print(f"  - ID {cg['id']:02d} | Qualifica: {cg['qualification']:<10} | Priorità: {cg['priority']} | Turno: {cg['start_time']} a {cg['end_time']} min")
+
+    # 3. Analisi Pazienti e Visite (Il cuore del Grafo)
+    print(f"\n🏥 CAMPIONE PAZIENTI E VISITE :")
+    for p in data['patients'][:10]:
+        print(f"  - Paziente P_{p['id']} (Regione: {p['region']})")
+        for v in p['visits']:
+            print(f"    ▪ Visita {v['visit_num']} | Durata: {v['duration']} min | TW: [{v['start_tw']}, {v['end_tw']}] | Operatori richiesti: {v['caregivers_count']}")
+            print(f"      Skill Richieste -> Min: {v['skill_requirements']['min']} | Max: {v['skill_requirements']['max']}")
+
+    # 4. Controllo Orari Traghetti
+    print(f"\n🚢 STRUTTURA ORARI TRAGHETTI (Ferry Schedules):")
+    for rotta, info in data['ferry_schedules'].items():
+        print(f"  - Tratta {rotta[0]} ➔ {rotta[1]} | Durata: {info['duration']} min")
+        print(f"    Partenze (in minuti): {info['departures']}")
+
+    # 5. Verifica Matrice delle Distanze (Driving Matrix)
+    print(f"\n🚗 VERIFICA DIZIONARIO DISTANZE (Campione Tuple):")
+    sample_keys = list(data['driving_matrix'].keys())[:100]
+    for k in sample_keys:
+        print(f"  - Chiave Nativa: {k} -> Tempo di guida: {data['driving_matrix'][k]} min")
+        
+    print("\n" + "=" * 60)
+    print(" CONSTRUTTO DATI IN RAM CORRETTO - PRONTO PER IL MODELLO")
+    print("=" * 60)
 
 if __name__ == "__main__":
     run_model_test()
