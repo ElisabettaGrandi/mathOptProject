@@ -20,7 +20,7 @@ FERRY_SCHEDULES = {
     }
 }
 
-def get_dataset(group_type, num_patients, seed=42):
+def get_dataset(group_type, num_patients, seed=43): #usati: 42
     """Genera e restituisce il dataset direttamente come dizionario Python in RAM"""
     random.seed(seed)
     
@@ -45,31 +45,57 @@ def get_dataset(group_type, num_patients, seed=42):
             duration = random.choice([15, 30, 45, 60])
             tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
             
+            max_dt = 23 if group_type == "A" else 18
             # --- GESTIONE FINESTRE TEMPORALI (TW) ---
             if region == center_region:
+            # --- CASO PAZIENTE AL CENTRO ---
+            # Il turno diurno più corto finisce alle 16:00 (960). Rientro entro le 16:00 - max_dt
+                limite_pomeridiano_centro = to_min(16, 0) - max_dt
+                
                 if num_visits == 1:
-                    start_tw = random.randint(to_min(8, 23 if group_type == "A" else 18), to_min(16, 0))
+                    max_start = limite_pomeridiano_centro - duration
+                    min_start = to_min(8, 23 if group_type == "A" else 18)
+                    start_tw = random.randint(min_start, max(min_start, max_start))
                 else:
                     if v_num == 1:
-                        start_tw = random.randint(to_min(8, 23 if group_type == "A" else 18), to_min(13, 0))
-                        last_end = start_tw + duration
+                        # CASO PEGGIORE VISITA 1: Deve iniziare abbastanza presto considerando che:
+                        # può slittare di 'max_tw_size' + durare 'duration' + attendere 120 min + seconda visita (max 60 min)
+                        max_start = limite_pomeridiano_centro - tw_size - duration - 120 - 60
+                        min_start = to_min(8, 23 if group_type == "A" else 18)
+                        start_tw = random.randint(min_start, max(min_start, max_start))
+                        
+                        # Nel caso peggiore, ipotizziamo che inizi alla fine della TW
+                        last_end_worst_case = start_tw + tw_size + duration
                     else:
-                        start_tw = random.randint(last_end + 120, to_min(16, 0))
+                        # La seconda visita inizia dopo la fine del caso peggiore della prima + 120 min
+                        min_start = last_end_worst_case + 120
+                        max_start = limite_pomeridiano_centro - duration
+                        start_tw = random.randint(min_start, max(min_start, max_start))
             else:
-                # Regole per pazienti sulle isole (Sekken / Bjørn / Løkta)
+                # --- CASO PAZIENTE SULLE ISOLE ---
                 ferry_to = FERRY_SCHEDULES[group_type][(center_region, region)]["duration"]
                 ferry_from = FERRY_SCHEDULES[group_type][(region, center_region)]["duration"]
-                
                 earliest_start = to_min(8, 46 if group_type == "A" else 36) + ferry_to
                 
+                # Ultimo traghetto sicuro di ritorno (minuto 975 o 990)
+                ultimo_traghetto_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
+                limite_pomeridiano_isola = ultimo_traghetto_ritorno - max_dt
+                
                 if num_visits == 1:
-                    start_tw = random.randint(earliest_start, to_min(16, 0) - ferry_from)
+                    max_start = limite_pomeridiano_isola - duration
+                    start_tw = random.randint(earliest_start, max(earliest_start, max_start))
                 else:
                     if v_num == 1:
-                        start_tw = random.randint(earliest_start, to_min(13, 0) - ferry_from)
-                        last_end = start_tw + duration
+                        # CASO PEGGIORE VISITA 1 ISOLE: Sottraiamo lo slittamento massimo della Time Window (180 min)
+                        max_start = limite_pomeridiano_isola - tw_size - duration - 120 - 60
+                        start_tw = random.randint(earliest_start, max(earliest_start, max_start))
+                        
+                        # Calcoliamo la fine teorica nel caso peggiore (slittamento massimo della TW)
+                        last_end_worst_case = start_tw + tw_size + duration
                     else:
-                        start_tw = random.randint(last_end + 120, to_min(16, 0) - ferry_from)
+                        min_start = last_end_worst_case + 120
+                        max_start = limite_pomeridiano_isola - duration
+                        start_tw = random.randint(min_start, max(min_start, max_start))
             
             cg_count = 1 if random.random() < 0.70 else 2
             total_caregiver_visits_needed += cg_count
@@ -81,28 +107,33 @@ def get_dataset(group_type, num_patients, seed=42):
             
             if cg_count == 1:
                 r = random.random()
-                if r < 0.20: 
+                # Riduciamo i casi super-rigidi al 10% ciascuno
+                if r < 0.10: 
                     req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-                elif r < 0.40: 
+                elif r < 0.20: 
                     req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
-                elif r < 0.60: 
+                elif r < 0.30: 
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                elif r < 0.80: 
+                # Allarghiamo i rami flessibili (dove vanno bene più figure) al 70% totale del campionamento
+                elif r < 0.65: 
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
                 else:          
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
             else: # cg_count == 2
                 r = random.random()
-                if r < 0.10: 
+                # Riduciamo la probabilità di richiedere due profili identici rigidi (2 nurse o 2 assistant)
+                if r < 0.05: 
                     req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
-                elif r < 0.20: 
+                elif r < 0.10: 
                     req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
+                # Diamo molta più ampiezza a combinazioni miste o a qualifica libera (come l'aiuto generico)
                 elif r < 0.50: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 0}}
+                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
                 elif r < 0.80: 
                     req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
                 else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 1, "health_aid": 2}}
+                    # Almeno un operatore sanitario, il secondo può essere chiunque (max abilitato per tutti a 2)
+                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 1, "assistant": 1, "health_aid": 2}}
             p_visits.append({
                 "visit_num": v_num,
                 "node_id": node_counter,
@@ -118,17 +149,14 @@ def get_dataset(group_type, num_patients, seed=42):
 
     num_caregivers = math.ceil(total_caregiver_visits_needed / 7)
     max_simultaneous_needed = max([v["caregivers_count"] for p in patients for v in p["visits"]])
-    num_caregivers = max(num_caregivers, max_simultaneous_needed, 6)
+    num_caregivers = max(num_caregivers, max_simultaneous_needed, 8)
     caregivers = []
     qualifications = ["nurse", "assistant", "health_aid"]
     priorities = {"nurse": 3, "assistant": 2, "health_aid": 1}
     
     for c_id in range(1, num_caregivers + 1):
         qual = qualifications[(c_id - 1) % 3]
-        working_shift = random.choice([
-            {"start": to_min(8, 0), "end": to_min(18, 0)},
-            {"start": to_min(9, 0), "end": to_min(19, 0)}
-        ])
+        working_shift = {"start": to_min(8, 0), "end": to_min(16, 0)} if c_id % 2 == 0 else {"start": to_min(9, 0), "end": to_min(17, 0)}
         caregivers.append({
             "id": c_id, "qualification": qual, "priority": priorities[qual],
             "start_time": working_shift["start"], "end_time": working_shift["end"]

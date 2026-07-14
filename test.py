@@ -8,7 +8,7 @@ from model import create_milp_model           # Sostituisci con il nome del tuo 
 def run_model_test():
     print("=== 1. Caricamento Dati dall'Istanza ===")
     # Generiamo un'istanza piccola (ad esempio, passa parametri per fare un'istanza ridotta se il tuo generatore lo permette)
-    data = get_dataset("A",10) 
+    data = get_dataset("A",13) 
     analyze_dataset_essence(data)
     
     # Un piccolo print di controllo per verificare cosa stiamo testando
