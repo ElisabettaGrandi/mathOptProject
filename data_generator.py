@@ -7,8 +7,8 @@ def to_min(hh, mm):
 # Manteniamo le tuple native come chiavi (molto più comode per i dizionari in Python)
 FERRY_SCHEDULES = {
     "A": {
-        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15)]},
-        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15)]}
+        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15), to_min(17,15), to_min(18,15)]},
+        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15), to_min(17,15), to_min(18,15)]}
     },
     "B": {
         ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]},
@@ -75,22 +75,34 @@ def get_dataset(group_type, num_patients, seed=42):
             total_caregiver_visits_needed += cg_count
             
             # Skill matching (regole del paper)
-            req_skills = {}
+            # Skill matching corretto e coerente (Evita conflitti min/max in model.py)
+            req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
+                          "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
+            
             if cg_count == 1:
                 r = random.random()
-                if r < 0.20: req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-                elif r < 0.40: req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
-                elif r < 0.60: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                elif r < 0.80: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
-                else:          req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
-            else:
+                if r < 0.20: 
+                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
+                elif r < 0.40: 
+                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
+                elif r < 0.60: 
+                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
+                elif r < 0.80: 
+                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
+                else:          
+                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
+            else: # cg_count == 2
                 r = random.random()
-                if r < 0.10: req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
-                elif r < 0.20: req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
-                elif r < 0.50: req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 0}}
-                elif r < 0.80: req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
-                else:          req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 1, "health_aid": 2}}
-
+                if r < 0.10: 
+                    req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
+                elif r < 0.20: 
+                    req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
+                elif r < 0.50: 
+                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 0}}
+                elif r < 0.80: 
+                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
+                else:          
+                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 1, "health_aid": 2}}
             p_visits.append({
                 "visit_num": v_num,
                 "node_id": node_counter,
@@ -159,5 +171,5 @@ def get_dataset(group_type, num_patients, seed=42):
         "caregivers": caregivers,
         "patients": patients,
         "driving_matrix": driving_matrix,
-        "min_interval_consecutive_visits": 60 #capire perché non va 120
+        "min_interval_consecutive_visits": 120
     }
