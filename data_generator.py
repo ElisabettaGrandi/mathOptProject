@@ -4,24 +4,23 @@ import math
 def to_min(hh, mm):
     return hh * 60 + mm
 
-# Manteniamo le tuple native come chiavi (molto più comode per i dizionari in Python)
+# definizione schedules dei ferry
 FERRY_SCHEDULES = {
     "A": {
-        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15), to_min(17,15), to_min(18,15)]},
-        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15), to_min(17,15), to_min(18,15)]}
+        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]},
+        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]}
     },
     "B": {
-        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]},
-        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(16,30)]},
-        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(16,30)]},
-        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(16,30)]},
-        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]},
-        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]}
+        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
+        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
     }
 }
 
-def get_dataset(group_type, num_patients, seed=43): #usati: 42
-    """Genera e restituisce il dataset direttamente come dizionario Python in RAM"""
+def get_dataset(group_type, num_patients, seed=43): #usati: 42, 
     random.seed(seed)
     
     if group_type == "A":
@@ -38,18 +37,15 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42
         num_visits = 1 if random.random() < 0.70 else 2
         
         p_visits = []
-        last_end = None  # Memorizza l'orario della prima visita per la consecutività
         
-        # Unico ciclo per gestire sia 1 che 2 visite senza duplicare il codice
         for v_num in range(1, num_visits + 1):
             duration = random.choice([15, 30, 45, 60])
             tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
             
             max_dt = 23 if group_type == "A" else 18
-            # --- GESTIONE FINESTRE TEMPORALI (TW) ---
+
             if region == center_region:
-            # --- CASO PAZIENTE AL CENTRO ---
-            # Il turno diurno più corto finisce alle 16:00 (960). Rientro entro le 16:00 - max_dt
+            # caso in cui il paziente è nella regione centrale -> turno finisce max alle 16 - tempo di guida massimo per arrivare al center
                 limite_pomeridiano_centro = to_min(16, 0) - max_dt
                 
                 if num_visits == 1:
@@ -58,26 +54,25 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42
                     start_tw = random.randint(min_start, max(min_start, max_start))
                 else:
                     if v_num == 1:
-                        # CASO PEGGIORE VISITA 1: Deve iniziare abbastanza presto considerando che:
-                        # può slittare di 'max_tw_size' + durare 'duration' + attendere 120 min + seconda visita (max 60 min)
+                        # prima visita: nel caso peggiore deve iniziare sufficientemente presto da consentire che la seconda visita venga svolta
+                        # quindi può slittare al massimo di tw_size + duration + 120 (stacco tra prima e seconda) + 60 (durata max seconda)
                         max_start = limite_pomeridiano_centro - tw_size - duration - 120 - 60
                         min_start = to_min(8, 23 if group_type == "A" else 18)
                         start_tw = random.randint(min_start, max(min_start, max_start))
-                        
-                        # Nel caso peggiore, ipotizziamo che inizi alla fine della TW
                         last_end_worst_case = start_tw + tw_size + duration
                     else:
-                        # La seconda visita inizia dopo la fine del caso peggiore della prima + 120 min
+                        # seconda visita: nel caso peggiore inizia dopo last_end_worst_case + 120
                         min_start = last_end_worst_case + 120
                         max_start = limite_pomeridiano_centro - duration
                         start_tw = random.randint(min_start, max(min_start, max_start))
             else:
-                # --- CASO PAZIENTE SULLE ISOLE ---
+                # caso in cui il paziente è sulle isole
                 ferry_to = FERRY_SCHEDULES[group_type][(center_region, region)]["duration"]
-                ferry_from = FERRY_SCHEDULES[group_type][(region, center_region)]["duration"]
+                #ferry_from = FERRY_SCHEDULES[group_type][(region, center_region)]["duration"]
                 earliest_start = to_min(8, 46 if group_type == "A" else 36) + ferry_to
                 
-                # Ultimo traghetto sicuro di ritorno (minuto 975 o 990)
+                # le due corse aggiunte sopra in FERRY_SCHEDULES le avevamo aggiunte per provare a risolvere
+                # originariamente le ultime corse sono negli orari qui sotto
                 ultimo_traghetto_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
                 limite_pomeridiano_isola = ultimo_traghetto_ritorno - max_dt
                 
@@ -86,13 +81,12 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42
                     start_tw = random.randint(earliest_start, max(earliest_start, max_start))
                 else:
                     if v_num == 1:
-                        # CASO PEGGIORE VISITA 1 ISOLE: Sottraiamo lo slittamento massimo della Time Window (180 min)
+                        # prima visita: come sopra
                         max_start = limite_pomeridiano_isola - tw_size - duration - 120 - 60
                         start_tw = random.randint(earliest_start, max(earliest_start, max_start))
-                        
-                        # Calcoliamo la fine teorica nel caso peggiore (slittamento massimo della TW)
                         last_end_worst_case = start_tw + tw_size + duration
                     else:
+                        # seconda visita: come sopra
                         min_start = last_end_worst_case + 120
                         max_start = limite_pomeridiano_isola - duration
                         start_tw = random.randint(min_start, max(min_start, max_start))
@@ -100,40 +94,35 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42
             cg_count = 1 if random.random() < 0.70 else 2
             total_caregiver_visits_needed += cg_count
             
-            # Skill matching (regole del paper)
-            # Skill matching corretto e coerente (Evita conflitti min/max in model.py)
             req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
                           "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
             
+            # le probabilità sono state impostate arbitrariamente cercando di allargare il più possibile le scelte più flessibili
             if cg_count == 1:
                 r = random.random()
-                # Riduciamo i casi super-rigidi al 10% ciascuno
                 if r < 0.10: 
                     req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
                 elif r < 0.20: 
                     req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
                 elif r < 0.30: 
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                # Allarghiamo i rami flessibili (dove vanno bene più figure) al 70% totale del campionamento
                 elif r < 0.65: 
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
                 else:          
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
-            else: # cg_count == 2
+            else: 
                 r = random.random()
-                # Riduciamo la probabilità di richiedere due profili identici rigidi (2 nurse o 2 assistant)
                 if r < 0.05: 
                     req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
                 elif r < 0.10: 
                     req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
-                # Diamo molta più ampiezza a combinazioni miste o a qualifica libera (come l'aiuto generico)
                 elif r < 0.50: 
                     req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
                 elif r < 0.80: 
                     req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
                 else:          
-                    # Almeno un operatore sanitario, il secondo può essere chiunque (max abilitato per tutti a 2)
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 1, "assistant": 1, "health_aid": 2}}
+            
             p_visits.append({
                 "visit_num": v_num,
                 "node_id": node_counter,
@@ -162,7 +151,6 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42
             "start_time": working_shift["start"], "end_time": working_shift["end"]
         })
 
-    # Matrice dei tempi con chiavi tuple nativa (l1, l2) invece di stringhe "l1,l2"
     ferry_ports = set()
     current_ferry_schedules = FERRY_SCHEDULES[group_type]
     
