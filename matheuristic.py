@@ -45,7 +45,7 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
     for key in x_vars.keys():
         val_inc = x_incumbent.get(key, 0.0)
         val_lp = x_lp.get(key, 0.0)
-        # Eq (28): w* = 1 - |x_inc - x_lp|[cite: 1]
+        # eq 28
         w_star[key] = 1.0 - abs(val_inc - val_lp)
         
     w_min = min(w_star.values()) if w_star else 0.0
@@ -53,13 +53,13 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
     diff = w_max - w_min
     
     for key, ws in w_star.items():
-        # Eq (29): Discretizzazione a Z valori[cite: 1]
-        if diff > 1e-6:
+        # eq 29 
+        if diff > 1e-6: # se la diff è 10^-6 significa che i pesi sono quasi identici
             w_disc = (Z + 1) - math.ceil(((ws - w_min) * (Z - 1)) / diff)
         else:
             w_disc = 1
             
-        # Eq (30): Sistema di discretizzazione a 3 valori[cite: 1]
+        # eq 30
         if 1 <= w_disc <= t2:
             weights[key] = 1
         elif t2 < w_disc <= t3:
@@ -84,6 +84,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     active_regions = list(set(data["region_mapping"][p[0]] for p in current_patients))
     ferry_nodes = filter_ferry_nodes(data, active_regions, all_nodes)
     
+    # [1]
     subgraph_nodes = [("Center", 1), ("Center", 2)] + current_patients + ferry_nodes
     
     # primo problema ristretto
@@ -95,17 +96,17 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         print("Infeffibile all'inizializzazione della Fase I.")
         return None, None
         
-    # Salva l'incumbent corrente (x_bar)[cite: 1]
+    # soluzione ottima problema ristretto
     x_bar = {k: v.X for k, v in x.items() if v.X > 0.5}
     
-    # Iterazioni di espansione (Fase I)[cite: 1]
-    idx = n_initial
+    # espansione
+    idx = n_initial # indice ultimo paziente inserito
     while idx < num_p_visits:
         elapsed = time.time() - start_time
         if elapsed >= time_limit:
             break
             
-        # Aggiungiamo beta pazienti[cite: 1]
+        # aggiunta beta pazienti
         next_idx = min(idx + beta, num_p_visits)
         new_patients = ordered_patients[idx:next_idx]
         current_patients.extend(new_patients)
@@ -113,11 +114,12 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         
         print(f"Espansione Grafo: {len(current_patients)}/{num_p_visits} visite...")
         
+        # [7]
         active_regions = list(set(data["region_mapping"][p[0]] for p in current_patients))
         ferry_nodes = filter_ferry_nodes(data, active_regions, all_nodes)
         subgraph_nodes = [("Center", 1), ("Center", 2)] + current_patients + ferry_nodes
         
-        # nuovo modello ristretto
+        # modello ristretto con grafo espanso
         model, x, y = create_milp_model(data, subgraph_nodes)
         
         # rilassamento lineare per calcolare i pesi
@@ -128,23 +130,22 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
             if lp_model.Status == GRB.OPTIMAL:
                 x_lp = {lp_model.getVarByName(v.VarName).VarName: lp_model.getVarByName(v.VarName).X for v in model.getVars() if "x[" in v.VarName}
         
-        # Sostituzione della Funzione Obiettivo con Hamming Distance (Eq 25)[cite: 1]
-        # Recuperiamo i nomi delle variabili per mappare l'incumbent precedente
+        # map dell'obiettivo precedente (nome var, oggetto var)
         var_map = {v.VarName: v for v in model.getVars() if "x[" in v.VarName}
         
-        # Calcolo dei pesi[cite: 1]
+        # calcolo dei pesi
         weights = {}
         if use_wps and x_lp:
-            # Adatta le chiavi per l'incumbent x_bar
+            # adatta i nomi delle chiavi
             x_bar_named = {}
             for (c, u, v) in x_bar.keys():
                 name = f"x[{c},{u},{v}]".replace(" ", "")
                 x_bar_named[name] = 1.0
             weights = compute_wps_weights(var_map, x_bar_named, x_lp)
         else:
-            weights = {k: 1 for k in var_map.keys()} # Classica Proximity Search[cite: 1]
+            weights = {k: 1 for k in var_map.keys()} # per la proximity search (non weighted)
             
-        # Definiamo l'obiettivo di Hamming Distance[cite: 1]
+        # nuovo obiettivo (Hamming distance) eq. 25
         hamming_obj = gp.quicksum(
             weights[v_name] * (1 - var_map[v_name]) if v_name in [f"x[{c},{u},{v}]".replace(" ", "") for (c,u,v) in x_bar.keys()]
             else weights[v_name] * var_map[v_name]
@@ -152,23 +153,23 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         )
         model.setObjective(hamming_obj, GRB.MINIMIZE)
         
-        # Risolvi fino a trovare una soluzione fattibile (Solution Limit = 1)[cite: 1]
+        # risoluzione con il nuovo obiettivo [11]
         model.Params.SolutionLimit = 1
         model.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
         model.optimize()
         
         if model.SolCount == 0:
-            print("Espansione Fallita: Nessuna soluzione trovata.")
+            print("No solution found")
             return None, None
             
-        # Aggiorna l'incumbent x_bar[cite: 1]
+        # aggiorna ottimo
         x_bar = {}
         for v in model.getVars():
             if "x[" in v.VarName and v.X > 0.5:
-                # Eseguiamo il parsing del nome variabile per estrarre la tupla originale
-                parts = v.VarName[2:-1].split(",")
-                # Esempio: x[2,('Center',1),('P_1',1)]
-                # Ricostruzione sicura delle tuple:
+                # estrazione della tupla
+                # x[2,('Center',1),('P_1',1)] --> 2,('Center',1),('P_1',1)
+                parts = v.VarName[2:-1].split(",") # [2],[('Center'],[1)],[('P_1'],[1)]
+                # ricostruzione dei nodi
                 c_id = int(parts[0])
                 u_node = eval(",".join(parts[1:3]))
                 v_node = eval(",".join(parts[3:]))
@@ -176,13 +177,13 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
 
     print("--- FASE I Completata con successo! Soluzione iniziale trovata. ---")
     
-    # --- FASE II: Solution Refinement ---[cite: 1]
+    
     print("--- FASE II: Raffinamento Soluzione ---")
     
-    # Creiamo il modello completo[cite: 1]
+    # modello completo
     model_full, x_full, y_full = create_milp_model(data, subgraph_nodes=None)
     
-    # 1. Valutiamo il costo della soluzione di partenza f(x_bar)[cite: 1]
+    # costo della soluzione di partenza x_bar [2]
     for (c, u, v), val in x_bar.items():
         if (c, u, v) in x_full:
             x_full[c, u, v].Start = 1.0
@@ -196,33 +197,33 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     best_sol_x = {k: v.X for k, v in x_full.items() if v.X > 0.5}
     print(f"Costo Soluzione Iniziale: {best_cost}")
     
-    # Calcoliamo l'LP Relaxation del modello completo una sola volta (Phase II, Algorithm 2)[cite: 1]
+    # rilassamento lineare [3]
     x_lp_full = {}
-    if use_wps:
+    if use_wps: # solo per wps perché per ps i pesi sono tutti uguali impostati a 1
         lp_full = model_full.relax()
         lp_full.optimize()
         if lp_full.Status == GRB.OPTIMAL:
             x_lp_full = {v.VarName: v.X for v in lp_full.getVars() if "x[" in v.VarName}
 
-    # Iterazioni di ottimizzazione locale con Proximity Search[cite: 1]
     iteration = 1
-    theta = 1.0 # Come specificato nel paper, theta = 1 min[cite: 1]
+    theta = 1.0 
     
     while True:
         elapsed = time.time() - start_time
         if elapsed >= time_limit:
             break
             
-        # Nuovo modello per la ricerca Hamming locale[cite: 1]
+        # nuovo modello
         model_it, x_it, y_it = create_milp_model(data, subgraph_nodes=None)
         
-        # Aggiungiamo il vincolo di Cut-off (Eq 27): f(x) <= f(x_bar) - theta[cite: 1]
+        # eq 27
         orig_obj = gp.quicksum(c["priority"] * (model_it.getVarByName(f"t_end[{c['id']}]") - model_it.getVarByName(f"t_start[{c['id']}]")) for c in data["caregivers"])
         model_it.addConstr(orig_obj <= best_cost - theta, name="cutoff")
         
-        # Mappatura variabili e calcolo pesi[cite: 1]
+        # map dell'obiettivo precedente 
         var_map = {v.VarName: v for v in model_it.getVars() if "x[" in v.VarName}
         
+        # [4]
         best_sol_named = {}
         for (c, u, v) in best_sol_x.keys():
             name = f"x[{c},{u},{v}]".replace(" ", "")
@@ -233,7 +234,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         else:
             weights = {k: 1 for k in var_map.keys()}
             
-        # Funzione obiettivo di Hamming Distance (Eq 26)[cite: 1]
+        # nuova funzione obiettivo [6] eq 26
         hamming_obj = gp.quicksum(
             weights[v_name] * (1 - var_map[v_name]) if v_name in best_sol_named
             else weights[v_name] * var_map[v_name]
@@ -241,17 +242,15 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         )
         model_it.setObjective(hamming_obj, GRB.MINIMIZE)
         
-        # Risolvi fino a trovare un miglioramento[cite: 1]
-        model_it.Params.SolutionLimit = 1
+        model_it.Params.SolutionLimit = 1 #appena trova un miglioramento si ferma
         model_it.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
         model_it.optimize()
         
         if model_it.SolCount > 0:
-            # Calcoliamo il costo effettivo della nuova soluzione
-            # Valutiamo fissando le variabili intere
+            # aggiornamento della soluzione
             best_sol_x = {k: v.X for k, v in x_it.items() if v.X > 0.5}
             
-            # Per ottenere il costo preciso, valutiamo con il modello principale
+            # risoluzione del modello originale con la nuova soluzione per calcolarne il costo [11]
             model_eval, x_ev, y_ev = create_milp_model(data, subgraph_nodes=None)
             for k, val in best_sol_x.items():
                 x_ev[k].Start = 1.0
