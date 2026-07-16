@@ -334,7 +334,6 @@ def get_dataset(group_type, num_patients, seed=22):
 
 
 
-
     def fill_Lists(location, end, time, stop):
         s = 0
         while True:
