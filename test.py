@@ -3,6 +3,7 @@ from gurobipy import GRB
 
 from data_generator import get_dataset  
 from model import create_milp_model
+from matheuristic import solve_wps_matheuristic
 
 def run_model_test():
     data = get_dataset("A",13) 
@@ -30,7 +31,7 @@ def run_model_test():
                     break
             
             if not has_moved:
-                print(f"  [Caregiver {c_id}] ({c['qualification']}):Turno non utilizzato.")
+                print(f"  [Caregiver {c_id}] ({c['qualification']}): Not utilized.")
                 continue
                 
             current_node = ("Center", 1)
@@ -46,9 +47,8 @@ def run_model_test():
                         found_next = True
                         break
                 
-                # Sicurezza per evitare loop infiniti se il grafo si rompe durante i test di sviluppo
                 if not found_next:
-                    print(f"  [ERRORE DUG] Flusso interrotto per {c_id} al nodo {current_node}")
+                    print("Graph error")
                     break
             
             readable_route = " -> ".join([f"{n[0]}(v{n[1]})" if "Center" not in str(n[0]) else n[0] for n in route_sequence])
@@ -72,9 +72,20 @@ def run_model_test():
     else:
         print(f"\nOptimization interrupted: {model.status}")
 
+    # WPS
+    print("WPS")
+    wps_cost, wps_time = solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=180, use_wps=True)
+    
+    # PS
+    print("\nPS (No Weights)")
+    ps_cost, ps_time = solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=180, use_wps=False)
+    
+    print("\nRISULTATI")
+    print(f"WPS - Costo Ottimo: {wps_cost} | Tempo di calcolo: {wps_time:.2f}s")
+    print(f"PS  - Costo Ottimo: {ps_cost} | Tempo di calcolo: {ps_time:.2f}s")
+
 def analyze_dataset(data):
     print(f"DATASET")
-    print("=" * 60)
     
     print(f"\nGroup type: {data['group_type']}")
     print("Loc/Patient -> Region:")
