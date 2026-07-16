@@ -23,7 +23,7 @@ FERRY_SCHEDULES = {
 
 
 
-def get_dataset(group_type, num_patients, seed=22): # 43 va
+def get_dataset(group_type, num_patients, seed=22):
     random.seed(seed)
     if group_type == "A":
         regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
@@ -59,8 +59,12 @@ def get_dataset(group_type, num_patients, seed=22): # 43 va
             else:
                 region = "Sekken"
         else:
-            #sistemare
-            continue        
+            if (p_id <= math.ceil(num_patients * 50 / 100 )):
+                region = "Sandnessjøen"
+            elif(p_id <= math.ceil(num_patients * 80 / 100 )):
+                region = "Bjørn" 
+            else:
+                region = "Løkta"       
         
         for v_num in range(1, num_visits + 1):
             a = a % 4
@@ -250,19 +254,6 @@ def get_dataset(group_type, num_patients, seed=22): # 43 va
 
 
 
-    # for k,v in priorities:
-    #     for c in caregivers:
-    #         if c["priority"] != v:
-    #             continue
-    #         time = c["start_time"]
-    #         stop = c["end_time"]
-    #         # if len(doublep) != 0:
-    #         #     tmp = []
-    #         #     for j in doublep:
-    #         #         if j["visits"]["req_skill"]["max"][k] > 0:
-    #         #             tmp.append(j)
-    #         #     if len(tmp) != 0:
-    #         #         s = random.sample(tmp, 1)
 
     sorted_caregivers = sorted(caregivers, key=lambda c: c["priority"])
 
@@ -300,19 +291,21 @@ def get_dataset(group_type, num_patients, seed=22): # 43 va
                 
                 for v_rem in vstar:
                     if v_rem == v1:
-                        v_rem.remove
+                        vstar.remove(v_rem)
+                        break
                 complete_Fill_Lists(location, location1, time , stop1)
                 complete_Fill_Lists(location1, end, time1, stop)
             else:
                 if time + connectLocations(location, location1) +v1[0][0]["duration"] <=  stop1 - 120:
                     for v_rem in vstar:
                         if v_rem == v1:
-                            v_rem.remove
+                            vstar.remove(v_rem)
+                            break
                     complete_Fill_Lists(location1, end, time + connectLocations(location, location1) +v1[0][0]["duration"], stop)
                 else:
                     for v_rem in vstar:
                         if v_rem == v1:
-                            v_rem.remove
+                            vstar.remove(v_rem)
                             break
                     complete_Fill_Lists(location, location1, time, stop- connectLocations( location1, stop)- v1[0][0]["duration"])
                     
@@ -344,62 +337,61 @@ def get_dataset(group_type, num_patients, seed=22): # 43 va
                     break
             if connectLocations(location, tryed_visit[1]) + connectLocations(tryed_visit[1], end) + tryed_visit[0]["duration"] <= stop:
                 location = tryed_visit[1]
-                patients["p_visits"]["start_tw"] = time + connectLocations(location, tryed_visit[1]) -(patients["p_visits"]["tw_size"] / 2) 
+                patients[tryed_visit[1]-1]["p_visits"]["start_tw"] = time + connectLocations(location, tryed_visit[1]) -(patients[tryed_visit[1]-1]["p_visits"]["tw_size"] / 2) 
                 time = time + connectLocations(location, tryed_visit[1]) + tryed_visit
-                patients["p_visits"]["end_tw"] = patients["p_visits"]["start_tw"] + patients["p_visits"]["tw_size"]
+                patients[tryed_visit[1]-1]["p_visits"]["end_tw"] = patients[tryed_visit[1]-1]["p_visits"]["start_tw"] + patients[tryed_visit[1]-1]["p_visits"]["tw_size"]
 
-                for el in vh:
-                    if el[0] == tryed_visit[0]:
-                        if el[0] == el.next[0]:
-                            vstar.append({el, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[1] == el.next[1]:
-                                vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
-                                el.next.remove
-                        if el[1] == el.next[1]:
-                            vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[0] == el.next[0]:
-                                el.next.remove
-                                vstar.append({el.next, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                        el.remove
+                i = 0
+                while i < len(vh)-1:
+                    if vh[i][0] == tryed_visit[0]:
+                        if vh[i][0] == vh[i+1][0]:
+                            vstar.append({vh[i], time, vh[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            vh.remove(vh[i+1])
+                            if vh[i][1] == vh[i+1][1]:
+                                vstar.append({vh[i+1], time, vh[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
+                                vh.remove(vh[i+1])
+                        if vh[i][1] == vh[i+1][1]:
+                            vstar.append({vh[i+1], time, vh[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            vh.remove(vh[i+1])
+                            if vh[i][0] == vh[i+1][0]:
+                                vh.remove(vh[i+1])
+                                vstar.append({vh[i+1], time, vh[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                        vh.remove(vh[i])
                         break
                 
-                for el in va:
-                    if el[0] == tryed_visit[0]:
-                        if el[0] == el.next[0]:
-                            vstar.append({el, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[1] == el.next[1]:
-                                vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
-                                el.next.remove
-                        if el[1] == el.next[1]:
-                            vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[0] == el.next[0]:
-                                el.next.remove
-                                vstar.append({el.next, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                        el.remove
+                while i < len(va)-1:
+                    if va[i][0] == tryed_visit[0]:
+                        if va[i][0] == va[i+1][0]:
+                            vstar.append({va[i], time, va[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            va.remove(va[i+1])
+                            if va[i][1] == va[i+1][1]:
+                                vstar.append({va[i+1], time, va[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
+                                va.remove(va[i+1])
+                        if va[i][1] == va[i+1][1]:
+                            vstar.append({va[i+1], time, va[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            va.remove(va[i+1])
+                            if va[i][0] == va[i+1][0]:
+                                va.remove(va[i+1])
+                                vstar.append({va[i+1], time, va[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                        va.remove(va[i])
                         break
                 
-                for el in vn:
-                    if el[0] == tryed_visit[0]:
-                        if el[0] == el.next[0]:
-                            vstar.append({el, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[1] == el.next[1]:
-                                vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
-                                el.next.remove
-                        if el[1] == el.next[1]:
-                            vstar.append({el.next, time, el[0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                            el.next.remove
-                            if el[0] == el.next[0]:
-                                el.next.remove
-                                vstar.append({el.next, time, el[0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
-                        el.remove
+                while i < len(vn)-1:
+                    if vn[i][0] == tryed_visit[0]:
+                        if vn[i][0] == vn[i+1][0]:
+                            vstar.append({vn[i], time, vn[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            vn.remove(vn[i+1])
+                            if vn[i][1] == vn[i+1][1]:
+                                vstar.append({vn[i+1], time, vn[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})                                
+                                vn.remove(vn[i+1])
+                        if vn[i][1] == vn[i+1][1]:
+                            vstar.append({vn[i+1], time, vn[i][0]["duration"], 0, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                            vn.remove(vn[i+1])
+                            if vn[i][0] == vn[i+1][0]:
+                                vn.remove(vn[i+1])
+                                vstar.append({vn[i+1], time, vn[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
+                        vn.remove(vn[i])
                         break
-            else:
-                s += 1
                 
                 
                         
