@@ -32,7 +32,7 @@ def filter_ferry_nodes(data, active_patient_regions, all_nodes):
     active_regions = set(active_patient_regions) | {data["region_mapping"]["Center"]}
     ferry_nodes = []
     for n in all_nodes:
-        if "->" in str(n[0]): #nodo ferry
+        if "->" in str(n[0]): # nodo ferry
             orig, dest = n[0].split("->")
             if orig in active_regions and dest in active_regions:
                 ferry_nodes.append(n)
@@ -63,9 +63,9 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
         if 1 <= w_disc <= t2:
             weights[key] = 1
         elif t2 < w_disc <= t3:
-            weights[key] = int(Z / 2) # 5[cite: 1]
+            weights[key] = int(Z / 2)
         else:
-            weights[key] = Z # 10[cite: 1]
+            weights[key] = Z 
             
     return weights
 
@@ -79,7 +79,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     n_initial = max(1, int(alpha * num_p_visits))
     current_patients = ordered_patients[:n_initial]
     
-    print(f"--- FASE I: Costruzione Soluzione Feasibile ({len(current_patients)}/{num_p_visits} visite) ---")
+    print("PHASE I")
     
     active_regions = list(set(data["region_mapping"][p[0]] for p in current_patients))
     ferry_nodes = filter_ferry_nodes(data, active_regions, all_nodes)
@@ -93,7 +93,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     model.optimize()
     
     if model.Status not in [GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.TIME_LIMIT] or model.SolCount == 0:
-        print("Infeffibile all'inizializzazione della Fase I.")
+        print("Model infeasible.")
         return None, None
         
     # soluzione ottima problema ristretto
@@ -111,9 +111,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         new_patients = ordered_patients[idx:next_idx]
         current_patients.extend(new_patients)
         idx = next_idx
-        
-        print(f"Espansione Grafo: {len(current_patients)}/{num_p_visits} visite...")
-        
+                
         # [7]
         active_regions = list(set(data["region_mapping"][p[0]] for p in current_patients))
         ferry_nodes = filter_ferry_nodes(data, active_regions, all_nodes)
@@ -130,7 +128,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
             if lp_model.Status == GRB.OPTIMAL:
                 x_lp = {lp_model.getVarByName(v.VarName).VarName: lp_model.getVarByName(v.VarName).X for v in model.getVars() if "x[" in v.VarName}
         
-        # map dell'obiettivo precedente (nome var, oggetto var)
+        # map dell'ottimo (nome var, oggetto var)
         var_map = {v.VarName: v for v in model.getVars() if "x[" in v.VarName}
         
         # calcolo dei pesi
@@ -175,10 +173,9 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
                 v_node = eval(",".join(parts[3:]))
                 x_bar[(c_id, u_node, v_node)] = 1.0
 
-    print("--- FASE I Completata con successo! Soluzione iniziale trovata. ---")
+    print("PHASE I END")
     
-    
-    print("--- FASE II: Raffinamento Soluzione ---")
+    print("PHASE II")
     
     # modello completo
     model_full, x_full, y_full = create_milp_model(data, subgraph_nodes=None)
@@ -190,12 +187,12 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
             
     model_full.optimize()
     if model_full.SolCount == 0:
-        print("Errore nel ripristinare la soluzione della Fase I nel modello completo.")
+        print("ERROR --> given solution not feasible")
         return None, None
         
-    best_cost = model_full.ObjVal
-    best_sol_x = {k: v.X for k, v in x_full.items() if v.X > 0.5}
-    print(f"Costo Soluzione Iniziale: {best_cost}")
+    best_cost = model_full.ObjVal # f(xbar)
+    best_sol_x = {k: v.X for k, v in x_full.items() if v.X > 0.5} # xbar per il modello completo
+    print(f"Initial Cost: {best_cost}")
     
     # rilassamento lineare [3]
     x_lp_full = {}
@@ -213,22 +210,22 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         if elapsed >= time_limit:
             break
             
-        # nuovo modello
-        model_it, x_it, y_it = create_milp_model(data, subgraph_nodes=None)
+        # nuovo modello -> obj = Hamming + cut off constr
+        model_it, x_it, y_it = create_milp_model(data, subgraph_nodes=None) # obj = Hamming e cut off constr
         
-        # eq 27
-        orig_obj = gp.quicksum(c["priority"] * (model_it.getVarByName(f"t_end[{c['id']}]") - model_it.getVarByName(f"t_start[{c['id']}]")) for c in data["caregivers"])
+        # [7] eq 27
+        orig_obj = gp.quicksum(c["priority"] * (model_it.getVarByName(f"t_end[{c['id']}]") - model_it.getVarByName(f"t_start[{c['id']}]")) for c in data["caregivers"]) #f(x)
         model_it.addConstr(orig_obj <= best_cost - theta, name="cutoff")
         
-        # map dell'obiettivo precedente 
+        # map dell'ottimo  
         var_map = {v.VarName: v for v in model_it.getVars() if "x[" in v.VarName}
         
-        # [4]
         best_sol_named = {}
         for (c, u, v) in best_sol_x.keys():
-            name = f"x[{c},{u},{v}]".replace(" ", "")
+            name = f"x[{c},{u},{v}]".replace(" ", "") # nome delle variabili in Gurobi
             best_sol_named[name] = 1.0
             
+        # [5]
         if use_wps and x_lp_full:
             weights = compute_wps_weights(var_map, best_sol_named, x_lp_full)
         else:
@@ -257,10 +254,10 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
             model_eval.optimize()
             
             best_cost = model_eval.ObjVal
-            print(f"Iterazione {iteration}: Nuovo Ottimo Locale Trovato! Costo = {best_cost}")
+            print(f"New solution's cost = {best_cost}")
             iteration += 1
         else:
-            print("Nessun ulteriore miglioramento trovato o limite raggiunto.")
+            print("No better solution / time elapsed.")
             break
             
     total_duration = time.time() - start_time

@@ -8,13 +8,13 @@ def build_graph(data):
     time_windows = {}
     visit_requirements = {} # caregivers_count, skill_min, skill_max
     
-    # Nodo Deposito
+    # nodo center
     nodes.append(("Center", 1))
     nodes.append(("Center", 2))
     node_regions[("Center", 1)] = data["region_mapping"]["Center"]
     node_regions[("Center", 2)] = data["region_mapping"]["Center"]
     
-    # Nodi Paziente
+    # nodi paziente
     for p in data["patients"]:
         p_name = f"P_{p['id']}"
         region = p["region"]
@@ -30,7 +30,7 @@ def build_graph(data):
                 "max": v["skill_requirements"]["max"]
             }
             
-    # Nodi Traghetto (Espansione in base a orari reali)
+    # nodi ferry
     ferry_nodes = []
     ferry_durations = {}
     for (orig, dest), f_data in data["ferry_schedules"].items():
@@ -38,16 +38,16 @@ def build_graph(data):
         for dep in f_data["departures"]:
             f_node = (f"{orig}->{dest}", dep) # -> per tenere duple anche i nodi per i ferry
             ferry_nodes.append(f_node)
-            node_regions[f_node] = orig # La regione di partenza del traghetto
+            node_regions[f_node] = orig # regione di partenza del traghetto
             ferry_durations[f_node] = duration
             
     all_nodes = nodes + ferry_nodes
     
-    # Calcolo Archi Validi (T_ivjz)
+    # archi validi
     valid_arcs = []
     travel_times = {}
     
-    # Regole di connettività semplificate dell'Appendice A
+    # regole appendice A
     for u in all_nodes:
         for v in all_nodes:
             if u == v: continue
@@ -60,12 +60,12 @@ def build_graph(data):
             reg_u = node_regions[u]
             reg_v = node_regions[v]
             
-            # Caso 1 & 2: Stessa Regione (Guida pura)
-            if "->" not in u_loc and "->" not in v_loc and reg_u == reg_v: #se non c'è -> non è un ferry
+            # casi 1 (nodo center - nodo visit --> stessa regione) e 2 (visit - visit --> stessa regione + controllo tw)
+            if "->" not in u_loc and "->" not in v_loc and reg_u == reg_v: #se non c'è "->" non è un ferry
                 #u_loc e v_loc contengono già l1 ed l2 così come impostati nella driving matrix
                 dt = data["driving_matrix"][(u_loc, v_loc)]
                 
-                # Controllo preliminare finestra temporale
+                # controllo finestra temporale
                 if v in time_windows:
                     u_dur = service_durations.get(u, 0)
                     u_start = time_windows.get(u, (0, 0))[0]
@@ -75,22 +75,22 @@ def build_graph(data):
                 valid_arcs.append((u, v))
                 travel_times[(u, v)] = dt
 
-            #Caso 3
+            # caso 3 (center - ferry --> partenza del ferry nella stessa regione del center)
             elif u_loc == "Center" and "->" in v_loc:
-                if data["region_mapping"]["Center"] == v_loc.split("->")[0]: #controlla che la regione della partenza sia la stessa del centro
-                    dt = data["driving_matrix"][("Center", v_loc.split("->")[0])] #estrae il dt dal center al porto di v
+                if data["region_mapping"]["Center"] == v_loc.split("->")[0]: # controlla che la regione della partenza sia la stessa del centro
+                    dt = data["driving_matrix"][("Center", v_loc.split("->")[0])] # estrae il dt dal center al porto di v
                     dep_time = v_idx 
                     
-                    # Al deposito l'orario di partenza minimo (u_start) e la durata (u_dur) sono 0
+                    # al center l'orario di partenza minimo (u_start) e la durata (u_dur) sono 0
                     u_start = time_windows.get(u, (0, 0))[0]
                     
                     if u_start + dt <= dep_time:
                         valid_arcs.append((u, v))
                         travel_times[(u, v)] = dt
                 
-            # Caso 4: Da paziente a Traghetto (Regione di partenza comune)
+            # caso 4 (visit - ferry --> paziente e partenza ferry stessa regione + controllo tempi per partenza ferry)
             elif "->" not in u_loc and "->" in v_loc:
-                if reg_u == v_loc.split("->")[0]: #paziente nella stessa regione del porto
+                if reg_u == v_loc.split("->")[0]: # paziente nella stessa regione del porto
                     dt = data["driving_matrix"][(u_loc, v_loc.split("->")[0])]
                     dep_time = v_idx
                     
@@ -101,59 +101,56 @@ def build_graph(data):
                         valid_arcs.append((u, v))
                         travel_times[(u, v)] = dt
                     
-            #Caso 5 ferry-centro
+            # caso 5 (ferry - center --> destinazione del ferry nella stessa regione del center)
             if "->" in u_loc and v_loc == "Center":
-                if u_loc.split("->")[1] == data["region_mapping"]["Center"]: #arrivo del caregiver e center nella stessa regione
-                    # Il tempo totale è la durata della navigazione + la guida dal porto al Centro
+                if u_loc.split("->")[1] == data["region_mapping"]["Center"]: # arrivo del caregiver e center nella stessa regione
+                    # il tempo totale è la durata della navigazione + la guida dal porto al center
                     total_t = ferry_durations[u] + data["driving_matrix"][(u_loc.split("->")[1], "Center")]
                     
-                    dep_time = u_idx  # Orario di partenza del traghetto
+                    dep_time = u_idx  # orario di partenza del traghetto
                     
-                    # Filtro temporale sul rientro (opzionale ma utile): non deve sforare la chiusura del centro
+                    # rientro: non deve sforare la chiusura del centro
                     if v in time_windows and dep_time + total_t > time_windows[v][1]:
                         continue
                         
                     valid_arcs.append((u, v))
                     travel_times[(u, v)] = total_t
 
-            # Caso 6: Da Traghetto a paziente (Regione di arrivo comune)
+            # caso 6 (ferry - visit --> destinazione del ferry nella stessa regione del paziente + controllo tempi di arrivo del ferry e visita)
             elif "->" in u_loc and "->" not in v_loc: 
-                if u_loc.split("->")[1] == reg_v: #paziente nella stessa regione in cui il ferry sbarca
+                if u_loc.split("->")[1] == reg_v: # paziente nella stessa regione in cui il ferry sbarca
                     total_t = ferry_durations[u] + data["driving_matrix"][(u_loc.split("->")[1], v_loc)]
                     
                     dep_time = u_idx
                     
-                    # Filtro temporale sulla finestra del paziente
+                    # finestra del paziente
                     if v in time_windows and dep_time + total_t > time_windows[v][1]:
                         continue
                         
                     valid_arcs.append((u, v))
                     travel_times[(u, v)] = total_t
 
-            # CASO 7: Da Traghetto a Traghetto (Connessione tra tratte)
+            # caso 7 (ferry - ferry --> partenza f1 != arrivo f2 + arrivo f1 = partenza f2 + controllo tempi)
             elif "->" in u_loc and "->" in v_loc:                
-                # Il traghetto 1 arriva dove parte il traghetto 2 (o nella stessa macro-regione)
+                # traghetto 1 arriva dove parte traghetto 2 
                 if u_loc.split("->")[1] == v_loc.split("->")[0]:
                     dep_time_u = u_idx
                     dep_time_v = v_idx
                     dur_u = ferry_durations[u]
                     
-                    # Se il tempo di partenza di v è successivo all'arrivo di u
+                    # tempo di partenza di v è successivo all'arrivo di u
                     if dep_time_u + dur_u <= dep_time_v:
                         valid_arcs.append((u, v))
-                        travel_times[(u, v)] = 2000 #large costant, as said in appendix A
+                        travel_times[(u, v)] = 2000 #large costant, come specificato all'appendice A
 
     return all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements
 
 def create_milp_model(data, subgraph_nodes=None):
-    """
-    Costruisce il modello MILP per l'HHCRSP con Traghetti.
-    Se subgraph_nodes è fornito, filtra i nodi per la Phase I della Matheuristica.
-    """
     # all_nodes: lista di tuple (ID_nodo, info)
     # Pazienti: ("P_1", 1) -> (ID, Numero_Visita)
     # Traghetti: ("F_1->2", departure_time) -> (Rotta, Orario_Partenza)
-    # Depot: ("Center", 1) e ("Center", 2)
+    # Center: ("Center", 1) e ("Center", 2)
+
     all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements = build_graph(data)
 
     valid_arcs = list(set(valid_arcs))
@@ -168,36 +165,37 @@ def create_milp_model(data, subgraph_nodes=None):
     
     caregivers = data["caregivers"]
     
-    # --- VARIABILI DECISIONALI ---
-    # x[c, u, v]: binaria (Eq 21)
+    # VARIABILI
+    # x[c, u, v]: binaria 
     x = model.addVars([(c["id"], u, v) for c in caregivers for (u, v) in valid_arcs], 
                       vtype=GRB.BINARY, name="x")
     
-    # y[u]: continua, definita SOLO per i nodi paziente N^P (Eq 22)
+    # y[u]: continua, definita per i nodi paziente N^P 
     patient_nodes = [n for n in all_nodes if "P_" in str(n[0])]
     y = model.addVars(patient_nodes, lb=0.0, vtype=GRB.CONTINUOUS, name="y")
     
-    # t_start[c], t_end[c]: tempi inizio/fine turno (Eq 23, 24)
+    # t_start[c], t_end[c]: tempi inizio/fine turno 
     t_start = model.addVars([c["id"] for c in caregivers], lb=0.0, vtype=GRB.CONTINUOUS, name="t_start")
     t_end = model.addVars([c["id"] for c in caregivers], lb=0.0, vtype=GRB.CONTINUOUS, name="t_end")
     
-    # --- FUNZIONE OBIETTIVO (Eq 1) ---
+    # OBIETTIVO
     obj = gp.quicksum(c["priority"] * (t_end[c["id"]] - t_start[c["id"]]) for c in caregivers)
     model.setObjective(obj, GRB.MINIMIZE)
     
-    # --- VINCOLI DI ROUTING (Eq 2 - 7) ---
+    # VINCOLI
+    # eq 2-7
     for c in caregivers:
         c_id = c["id"]
-        # Uscita dal deposito iniziale (Eq 2)
+        # (2) ensure that each caregiver departs from the starting node (0, 1) at most once
         model.addConstr(gp.quicksum(x[c_id, ("Center", 1), v] for v in all_nodes if (("Center", 1), v) in valid_arcs) <= 1)
         
-        # Conservazione del flusso deposito inizio/fine (Eq 3)
+        # (3) guarantee that each caregiver who departs from the starting node must return to the ending node (0, 2)
         model.addConstr(
             gp.quicksum(x[c_id, ("Center", 1), v] for v in all_nodes if (("Center", 1), v) in valid_arcs) ==
             gp.quicksum(x[c_id, u, ("Center", 2)] for u in all_nodes if (u, ("Center", 2)) in valid_arcs)
         )
         
-        # Conservazione del flusso nei nodi intermedi (Eq 4)
+        # (4) establish flow conservation: a caregiver entering either a patient node or a ferry node must also exit it
         for n in all_nodes:
             if n in [("Center", 1), ("Center", 2)]: continue
             model.addConstr(
@@ -205,14 +203,14 @@ def create_milp_model(data, subgraph_nodes=None):
                 gp.quicksum(x[c_id, n, v] for v in all_nodes if (n, v) in valid_arcs)
             )
 
-    # Vincoli di assegnazione e skill matching (Eq 5, 6, 7)
     for n in patient_nodes:
         req = visit_requirements[n]
         
-        # Copertura visite (Eq 5)
+        # (5) specify the exact number of caregivers assigned to each patient node
         model.addConstr(gp.quicksum(x[c["id"], u, n] for c in caregivers for u in all_nodes if (u, n) in valid_arcs) == req["count"])
         
-        # Skill matching per qualifica (Eq 6 e 7)
+        # (6) ensure that the number of caregivers of each qualification assigned to a patient node meets the minimum requirement. In contrast, constraints (7) ensure that the
+        # number of caregivers of each qualification assigned to a patient node does not exceed the allowable limit.
         for q in ["nurse", "assistant", "health_aid"]:
             cg_of_q = [c["id"] for c in caregivers if c["qualification"] == q]
             q_sum = gp.quicksum(x[c_id, u, n] for c_id in cg_of_q for u in all_nodes if (u, n) in valid_arcs)
@@ -222,13 +220,13 @@ def create_milp_model(data, subgraph_nodes=None):
             if q in req["max"]:
                 model.addConstr(q_sum <= req["max"][q])
 
-    # --- VINCOLI TEMPORALI E DI SCHEDULING (Eq 8 - 20) ---
-    M = 1440 # Impostato a minuti totali in una giornata
+    M = 1440 # minuti totali in una giornata
     
     for c in caregivers:
         c_id = c["id"]
         
-        # Collegamento t_start (Eq 8, 9)
+        # (8) ensure that when the first destination for a caregiver is a patient node, the caregiver’s departure time from the healthcare center is no later than the service
+        # start time at that patient minus the arc traversal time
         for v in all_nodes:
             if (("Center", 1), v) in valid_arcs:
                 dt = travel_times[(("Center", 1), v)]
@@ -237,7 +235,10 @@ def create_milp_model(data, subgraph_nodes=None):
                 elif "Center" not in str(v[0]): # Verso Traghetto (v[1] è la partenza D_jz) (Eq 9)
                     model.addConstr(t_start[c_id] <= v[1] - dt + M * (1 - x[c_id, ("Center", 1), v]))
                     
-        # Collegamento fine turno t_end (Eq 13, 14)
+        # (13) ensure that when the origin node of the last traversed arc corresponds to a patient visit, the caregiver’s arrival at the healthcare center is no earlier than
+        # the sum of the service start time, service duration, and arc traversal time
+        # (14) guarantee that when the origin node of the last traversed arc corresponds to a ferry trip, the caregiver’s arrival at the healthcare center is no earlier than the sum of the ferry departure
+        # time and arc traversal time
         for u in all_nodes:
             if (u, ("Center", 2)) in valid_arcs:
                 dt = travel_times[(u, ("Center", 2))]
@@ -247,12 +248,13 @@ def create_milp_model(data, subgraph_nodes=None):
                 elif "Center" not in str(u[0]): # Da Traghetto (u[1] è la partenza del traghetto D_iv) (Eq 14)
                     model.addConstr(t_end[c_id] >= u[1] + dt - M * (1 - x[c_id, u, ("Center", 2)]))
         
-        # Disponibilità turni (Eq 18, 19, 20)
+        # (18)–(19) guarantee that the departure time from the healthcare center and the return time to 
+        # the healthcare center for each caregiver are within the given caregiver’s time window
         model.addConstr(t_start[c_id] >= c["start_time"])
         model.addConstr(t_end[c_id] <= c["end_time"])
+        # (20) ensure that the route starting time does not exceed the route ending time for each caregiver
         model.addConstr(t_start[c_id] <= t_end[c_id])
 
-    # Relazione temporale consecutiva (Eq 10, 11, 12)
     for (u, v) in valid_arcs:
         if u in [("Center", 1), ("Center", 2)] or v in [("Center", 1), ("Center", 2)]: continue
         dt = travel_times[(u, v)]
@@ -262,26 +264,32 @@ def create_milp_model(data, subgraph_nodes=None):
         
         for c in caregivers:
             c_id = c["id"]
-            if is_u_patient and is_v_patient: # Paziente -> Paziente (Eq 10)
+            if is_u_patient and is_v_patient: 
+                # (10) ensure that the service start time at node (𝑗, 𝑧) cannot be earlier than the
+                # sum of the service start time at node (𝑖, 𝑣), the service duration at node (𝑖, 𝑣), and the arc traversal time 
                 u_dur = service_durations.get(u, 0)
                 model.addConstr(y[v] >= y[u] + u_dur + dt - M * (1 - x[c_id, u, v]))
                 
-            elif is_u_patient and not is_v_patient: # Paziente -> Traghetto (Eq 11)
+            elif is_u_patient and not is_v_patient: 
+                # (11) guarantee that the service start time at the patient does not exceed the ferry departure time minus the
+                # sum of the service duration and the arc traversal time
                 u_dur = service_durations.get(u, 0)
-                # v[1] rappresenta l'orario fisso di partenza del traghetto D_jz
+                # v[1] orario fisso di partenza del traghetto D_jz
                 model.addConstr(y[u] <= v[1] - u_dur - dt + M * (1 - x[c_id, u, v]))
                 
-            elif not is_u_patient and is_v_patient: # Traghetto -> Paziente (Eq 12)
+            elif not is_u_patient and is_v_patient: 
+                # (12) ensure that the start service time at that patient is greater than or
+                # equal to the sum of the ferry departure time and the arc traversal time
                 # u[1] rappresenta la partenza del traghetto D_iv. 
                 # dt include già la durata del traghetto (U_iv) + guida (H_lj)
                 model.addConstr(y[v] >= u[1] + dt - M * (1 - x[c_id, u, v]))
 
-    # Finestre temporali dei pazienti (Eq 15, 16)
+    # (15)–(16) ensure that each patient node is visited within its designated time window
     for n in patient_nodes:
         model.addConstr(y[n] >= time_windows[n][0])
         model.addConstr(y[n] <= time_windows[n][1])
 
-    # Intervallo minimo visite consecutive stesso paziente (Eq 17)
+    # (17) enforce the required interval between consecutive visits to each patient
     for n1 in patient_nodes:
         for n2 in patient_nodes:
             # Stesso paziente (n1[0] == n2[0]) e visita successiva (n2[1] == n1[1] + 1)
