@@ -286,11 +286,15 @@ def get_dataset(group_type, num_patients, seed=22):
             v1 = vstar[0]
             # controllo qualità ciclando questo con j
             j = 0
-            while j < len(vstar) + 1:
-                if c["qualification"] not in j[0][0]["req_skill"]["max"]: 
+            t = c["qualification"]
+            while j < len(vstar):
+                if t== "assistant" and vstar[j][0]["req_skill"]["max"]["assistant"] == 0 and  vstar[j][0]["req_skill"]["max"]["health_aid"] == 0:
+                    j += 1
+                elif t == "health_aid" and vstar[j][0]["req_skill"]["max"]["health_aid"] == 0:
                     j += 1
                 else:
                     v1 = vstar[j]
+                    break
             if j == len(vstar):
                 fill_Lists(location, end, time, stop)
                 return 
@@ -356,7 +360,7 @@ def get_dataset(group_type, num_patients, seed=22):
                 patients[tryed_visit[1]-1]["p_visits"]["end_tw"] = patients[tryed_visit[1]-1]["p_visits"]["start_tw"] + patients[tryed_visit[1]-1]["p_visits"]["tw_size"]
 
                 i = 0
-                while i < len(vh)-1:
+                while i < len(vh):
                     if vh[i][0] == tryed_visit[0]:
                         if vh[i][0] == vh[i+1][0]:
                             vstar.append({vh[i], time, vh[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
@@ -374,7 +378,7 @@ def get_dataset(group_type, num_patients, seed=22):
                         break
                     i += 1
                 i = 0
-                while i < len(va)-1:
+                while i < len(va):
                     if va[i][0] == tryed_visit[0]:
                         if va[i][0] == va[i+1][0]:
                             vstar.append({va[i], time, va[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
@@ -392,7 +396,7 @@ def get_dataset(group_type, num_patients, seed=22):
                         break
                     i += 1
                 i = 0
-                while i < len(vn)-1:
+                while i < len(vn):
                     if vn[i][0] == tryed_visit[0]:
                         if vn[i][0] == vn[i+1][0]:
                             vstar.append({vn[i], time, vn[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
