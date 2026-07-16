@@ -284,7 +284,16 @@ def get_dataset(group_type, num_patients, seed=22):
     def complete_Fill_Lists(location, end, time, stop):
         if len(vstar) !=0:
             v1 = vstar[0]
-            # controllo qualità ciclando
+            # controllo qualità ciclando questo con j
+            j = 0
+            while j < len(vstar) + 1:
+                if c["qualification"] not in j[0][0]["req_skill"]["max"]: 
+                    j += 1
+                else:
+                    v1 = vstar[j]
+            if j == len(vstar):
+                fill_Lists(location, end, time, stop)
+                return 
             if v1[3] == 1:
                 location1 = v1[0][1]
                 stop1 = v1[-1]
@@ -302,15 +311,17 @@ def get_dataset(group_type, num_patients, seed=22):
                         if v_rem == v1:
                             vstar.remove(v_rem)
                             break
-                    #aggiungere il blocco in mezzo alle visite
+                    #aggiungere il blocco in mezzo alle visite (il primo dei 2)
+                    complete_Fill_Lists(location, location1, time, time + connectLocations(location, location1))
                     complete_Fill_Lists(location1, end, time + connectLocations(location, location1) +v1[0][0]["duration"], stop)
                 else:
                     for v_rem in vstar:
                         if v_rem == v1:
                             vstar.remove(v_rem)
                             break
-                    #come sopra
+                    #come sopra, il secondo
                     complete_Fill_Lists(location, location1, time, stop - connectLocations( location1, stop)- v1[0][0]["duration"])
+                    complete_Fill_Lists(location1, end, time + connectLocations(location, location1) +v1[0][0]["duration"], stop)
                     
                 
             
@@ -361,6 +372,7 @@ def get_dataset(group_type, num_patients, seed=22):
                                 vstar.append({vh[i+1], time, vh[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
                         vh.remove(vh[i])
                         break
+                    i += 1
                 i = 0
                 while i < len(va)-1:
                     if va[i][0] == tryed_visit[0]:
@@ -378,6 +390,7 @@ def get_dataset(group_type, num_patients, seed=22):
                                 vstar.append({va[i+1], time, va[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
                         va.remove(va[i])
                         break
+                    i += 1
                 i = 0
                 while i < len(vn)-1:
                     if vn[i][0] == tryed_visit[0]:
@@ -395,6 +408,8 @@ def get_dataset(group_type, num_patients, seed=22):
                                 vstar.append({vn[i+1], time, vn[i][0]["duration"], 1, time - connectLocations(location, tryed_visit[1]) - tryed_visit})
                         vn.remove(vn[i])
                         break
+                    i += 1
+            s += 1
                 
                 
                         
