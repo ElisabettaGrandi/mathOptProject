@@ -14,6 +14,7 @@ try:
     from model import create_milp_model as create_original_model
     from data_from_model import create_milp_model as create_filtered_model
     from data_generator import get_dataset
+    from data_try import get_dataset as get_dataset_try
 except ImportError:
     print("[ATTENZIONE] Assicurati che i nomi dei file importati corrispondano ai tuoi file reali.")
     print("In alternativa, incolla qui sopra le definizioni delle funzioni dei tuoi file.")
@@ -82,6 +83,7 @@ def esegui_test_di_fattibilita():
     seed = 43
     print(f"Generazione istanza iniziale con {num_pazienti} pazienti (Seed: {seed})...")
     istanza_iniziale = get_dataset(group_type="B", num_patients=num_pazienti, seed=seed)
+    #istanza_iniziale = get_dataset_try(group_type="B", num_patients=num_pazienti, seed=seed)
     
     print("\n" + "=" * 70)
     print(" FASE 1: TEST MODELLO ORIGINALE SU DATASET INIZIALE")
