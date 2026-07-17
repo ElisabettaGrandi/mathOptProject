@@ -14,6 +14,7 @@ try:
     from model import create_milp_model as create_original_model
     from data_from_model import create_milp_model as create_filtered_model
     from data_generator import get_dataset
+    from matheuristic import solve_wps_matheuristic
 except ImportError:
     print("[ATTENZIONE] Assicurati che i nomi dei file importati corrispondano ai tuoi file reali.")
     print("In alternativa, incolla qui sopra le definizioni delle funzioni dei tuoi file.")
@@ -30,14 +31,24 @@ def filter_dataset_via_new_model(data):
     
     print("\n--- [Filtro] Ottimizzazione del modello di copertura con x_bar ---")
     
-    model.Params.MIPGap = 0.01      # Ferma il calcolo all'1% di GAP
+    model.Params.MIPGap = 0.03      # Ferma il calcolo all'1% di GAP
     model.Params.DualReductions = 0 # Evita lo stato di errore (4)
     model.Params.outputFlag = 1
+    model.Params.TimeLimit = 300
     model.optimize()
     
-    if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
-        print("[Errore] Impossibile trovare una soluzione anche con il modello rilassato!")
-        return None
+    #if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
+    #    print("[Errore] Impossibile trovare una soluzione anche con il modello rilassato!")
+    #    return None
+
+    if model.SolCount > 0:
+        print(f"\n[Filtro] Calcolo terminato. Stato: {model.Status}. Ultimo costo trovato: {model.ObjVal}")
+        
+        # Estraiamo quali visite sono state servite nella migliore soluzione corrente (x_bar == 1)
+        visite_salvate = set()
+        for n, var in x_bar.items():
+            if var.X > 0.5:  # Tolleranza standard per variabili binarie
+                visite_salvate.add(n)
 
     # 2. Troviamo quali visite Gurobi ha deciso di servire (x_bar == 1)
     visite_salvate = set()
@@ -78,10 +89,10 @@ def filter_dataset_via_new_model(data):
 def esegui_test_di_fattibilita():
     # 1. Generiamo una nuova istanza (usando il tuo generatore)
     # Impostiamo 15 pazienti su gruppo B per forzare una situazione complessa/infeasible
-    num_pazienti = 15
+    num_pazienti = 20
     seed = 43
     print(f"Generazione istanza iniziale con {num_pazienti} pazienti (Seed: {seed})...")
-    istanza_iniziale = get_dataset(group_type="B", num_patients=num_pazienti, seed=seed)
+    istanza_iniziale = get_dataset(group_type="A", num_patients=num_pazienti, seed=seed)
     
     print("\n" + "=" * 70)
     print(" FASE 1: TEST MODELLO ORIGINALE SU DATASET INIZIALE")
@@ -116,6 +127,19 @@ def esegui_test_di_fattibilita():
     print(" FASE 3: VERIFICA DI FATTIBILITÀ SUL NUOVO DATASET")
     print("=" * 70)
     print("Ora lanciamo il TUO modello di partenza (RIGIDO) usando solo i dati filtrati...")
+
+        # WPS
+    print("WPS")
+    wps_cost, wps_time = solve_wps_matheuristic(dataset_feasible, alpha=0.50, beta=3, time_limit=180, use_wps=True)
+    
+    # PS
+    print("\nPS (No Weights)")
+    ps_cost, ps_time = solve_wps_matheuristic(dataset_feasible, alpha=0.50, beta=3, time_limit=180, use_wps=False)
+    
+    print("\nRISULTATI")
+    print(f"WPS - Costo Ottimo: {wps_cost} | Tempo di calcolo: {wps_time:.2f}s")
+    print(f"PS  - Costo Ottimo: {ps_cost} | Tempo di calcolo: {ps_time:.2f}s")
+
     
     # Costruiamo il modello originale sul dataset depurato
     modello_originale_pulito, _, _ = create_original_model(dataset_feasible)
@@ -137,6 +161,7 @@ def esegui_test_di_fattibilita():
         print("!" * 60)
     else:
         print(f"\n RISULTATO: Stato inatteso ({modello_originale_pulito.Status})")
+
 
 
 if __name__ == "__main__":
