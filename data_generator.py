@@ -20,7 +20,7 @@ FERRY_SCHEDULES = {
     }
 }
 
-def get_dataset(group_type, num_patients, seed=43): #usati: 42, 
+def get_dataset(group_type, num_patients, seed=43):
     random.seed(seed)
     
     if group_type == "A":
@@ -46,24 +46,24 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42,
 
             if region == center_region:
             # caso in cui il paziente è nella regione centrale -> turno finisce max alle 16 - tempo di guida massimo per arrivare al center
-                limite_pomeridiano_centro = to_min(16, 0) - max_dt
+                center_afternoon_limit = to_min(16, 0) - max_dt
                 
                 if num_visits == 1:
-                    max_start = limite_pomeridiano_centro - duration
+                    max_start = center_afternoon_limit - duration
                     min_start = to_min(8, 23 if group_type == "A" else 18)
                     start_tw = random.randint(min_start, max(min_start, max_start))
                 else:
                     if v_num == 1:
                         # prima visita: nel caso peggiore deve iniziare sufficientemente presto da consentire che la seconda visita venga svolta
                         # quindi può slittare al massimo di tw_size + duration + 120 (stacco tra prima e seconda) + 60 (durata max seconda)
-                        max_start = limite_pomeridiano_centro - tw_size - duration - 120 - 60
+                        max_start = center_afternoon_limit - tw_size - duration - 120 - 60
                         min_start = to_min(8, 23 if group_type == "A" else 18)
                         start_tw = random.randint(min_start, max(min_start, max_start))
                         last_end_worst_case = start_tw + tw_size + duration
                     else:
                         # seconda visita: nel caso peggiore inizia dopo last_end_worst_case + 120
                         min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_centro - duration
+                        max_start = center_afternoon_limit - duration
                         start_tw = random.randint(min_start, max(min_start, max_start))
             else:
                 # caso in cui il paziente è sulle isole
@@ -73,22 +73,22 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42,
                 
                 # le due corse aggiunte sopra in FERRY_SCHEDULES le avevamo aggiunte per provare a risolvere
                 # originariamente le ultime corse sono negli orari qui sotto
-                ultimo_traghetto_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
-                limite_pomeridiano_isola = ultimo_traghetto_ritorno - max_dt
+                last_ferry = to_min(16, 15) if group_type == "A" else to_min(16, 30)
+                island_afternoon_limit = last_ferry - max_dt
                 
                 if num_visits == 1:
-                    max_start = limite_pomeridiano_isola - duration
+                    max_start = island_afternoon_limit - duration
                     start_tw = random.randint(earliest_start, max(earliest_start, max_start))
                 else:
                     if v_num == 1:
                         # prima visita: come sopra
-                        max_start = limite_pomeridiano_isola - tw_size - duration - 120 - 60
+                        max_start = island_afternoon_limit - tw_size - duration - 120 - 60
                         start_tw = random.randint(earliest_start, max(earliest_start, max_start))
                         last_end_worst_case = start_tw + tw_size + duration
                     else:
                         # seconda visita: come sopra
                         min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_isola - duration
+                        max_start = island_afternoon_limit - duration
                         start_tw = random.randint(min_start, max(min_start, max_start))
             
             cg_count = 1 if random.random() < 0.70 else 2
@@ -97,7 +97,7 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42,
             req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
                           "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
             
-            # le probabilità sono state impostate arbitrariamente cercando di allargare il più possibile le scelte più flessibili
+            # le probabilità sono state impostate cercando di allargare il più possibile le scelte più flessibili
             if cg_count == 1:
                 r = random.random()
                 if r < 0.10: 

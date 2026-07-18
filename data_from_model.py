@@ -5,11 +5,6 @@ from gurobipy import GRB
 from graph import build_graph
 
 def milp_feasible_nodes(data, subgraph_nodes=None):
-    # all_nodes: lista di tuple (ID_nodo, info)
-    # Pazienti: ("P_1", 1) -> (ID, Numero_Visita)
-    # Traghetti: ("F_1->2", departure_time) -> (Rotta, Orario_Partenza)
-    # Center: ("Center", 1) e ("Center", 2)
-
     all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements, big_m_arcs = build_graph(data)
 
     valid_arcs = list(set(valid_arcs))
@@ -188,65 +183,48 @@ def milp_feasible_nodes(data, subgraph_nodes=None):
     return model, x, y, x_bar
 
 def filter_dataset_via_model(data):
-    """
-    Risolve il nuovo modello per estrarre la lista di pazienti 'sicuri'.
-    Ritorna un NUOVO dizionario dati contenente solo i pazienti feasible.
-    """
-    # 1. Costruiamo e risolviamo il modello di copertura modificato (con x_bar e Big-M)
     model, x, y, x_bar = milp_feasible_nodes(data)
-    
-    print("\n--- [Filtro] Ottimizzazione del modello di copertura con x_bar ---")
-    
+        
     model.Params.MIPGap = 0.03      # Ferma il calcolo all'1% di GAP
     model.Params.DualReductions = 0 # Evita lo stato di errore (4)
     model.Params.outputFlag = 1
     model.Params.TimeLimit = 300
     model.optimize()
     
-    #if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
-    #    print("[Errore] Impossibile trovare una soluzione anche con il modello rilassato!")
-    #    return None
+    if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
+        print("Error")
+        return None
 
-    if model.SolCount > 0:
-        print(f"\n[Filtro] Calcolo terminato. Stato: {model.Status}. Ultimo costo trovato: {model.ObjVal}")
-        
-        # Estraiamo quali visite sono state servite nella migliore soluzione corrente (x_bar == 1)
-        visite_salvate = set()
+    if model.SolCount > 0:        
+        saved_visits = set()
         for n, var in x_bar.items():
-            if var.X > 0.5:  # Tolleranza standard per variabili binarie
-                visite_salvate.add(n)
+            if var.X > 0.5:  
+                saved_visits.add(n)
 
-    # 2. Troviamo quali visite Gurobi ha deciso di servire (x_bar == 1)
-    visite_salvate = set()
-    for n, var in x_bar.items():
-        if var.X > 0.5:  # Tolleranza numerica standard per variabili binarie
-            visite_salvate.add(n)
 
-    print(f"[Filtro] Visite totali nell'istanza iniziale: {len(x_bar)}")
-    print(f"[Filtro] Visite giudicate FATTIBILI: {len(visite_salvate)}")
+    #print(f"Visite iniziali: {len(x_bar)}")
+    #print(f"Visite fattibili: {len(saved_visits)}")
 
-    # 3. REGOLA DI COERENZA: Un paziente viene mantenuto nel dataset finale
-    # solo se TUTTE le sue visite pianificate sono state ritenute fattibili dal solutore.
-    pazienti_originali = data["patients"]
-    pazienti_filtrati = []
+    # applicazione del filtro
+    orig_pat = data["patients"]
+    filt_pat = []
 
-    for p in pazienti_originali:
+    for p in orig_pat:
         p_name = f"P_{p['id']}"
-        tutte_visite_ok = True
+        all_visits = True
         
         for v in p["visits"]:
             v_node = (p_name, v["visit_num"])
-            if v_node not in visite_salvate:
-                tutte_visite_ok = False
+            if v_node not in saved_visits:
+                all_visits = False
                 break
         
-        if tutte_visite_ok:
-            pazienti_filtrati.append(p)
+        if all_visits:
+            filt_pat.append(p)
 
-    print(f"[Filtro] Pazienti originali: {len(pazienti_originali)} -> Pazienti salvati: {len(pazienti_filtrati)}")
+    #print(f"Pazienti originali: {len(orig_pat)} -> Pazienti salvati: {len(filt_pat)}")
 
-    # 4. Creiamo una copia profonda del dataset originale e sostituiamo la lista pazienti
     clean_data = copy.deepcopy(data)
-    clean_data["patients"] = pazienti_filtrati
+    clean_data["patients"] = filt_pat
 
     return clean_data
