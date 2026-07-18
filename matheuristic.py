@@ -69,7 +69,7 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
             
     return weights
 
-def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=True):
+def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=1800, use_wps=True):
     start_time = time.time()
     all_nodes, valid_arcs, travel_times, _, _, _, _= build_graph(data)
     
@@ -90,7 +90,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     # primo problema ristretto
     model, x, y = create_milp_model(data, subgraph_nodes)
     model.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
-    model.Params.outputFlag = 1
+    model.Params.outputFlag = 0 
     model.optimize()
     
     if model.Status not in [GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.TIME_LIMIT] or model.SolCount == 0:
@@ -98,7 +98,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         return None, None
         
     
-    print("------------PRIMO PROBLEMA RISTRETTO RISOLTO-------------")
+    print("------------PHASE 1 LINE 3 SOLVED-------------")
     # soluzione ottima problema ristretto
     x_bar = {k: v.X for k, v in x.items() if v.X > 0.5}
     
@@ -127,11 +127,11 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         x_lp = {}
         if use_wps:
             lp_model = model.relax()
-            lp_model.Params.outputFlag = 1
+            lp_model.Params.outputFlag = 0
             lp_model.optimize()
             if lp_model.Status == GRB.OPTIMAL:
                 x_lp = {lp_model.getVarByName(v.VarName).VarName: lp_model.getVarByName(v.VarName).X for v in model.getVars() if "x[" in v.VarName}
-                print("------------RILASSAMENTO LINEARE RISOLTO-------------")
+                print("------------PHASE 1 RILASSAMENTO LINEARE RISOLTO-------------")
         
         # map dell'ottimo (nome var, oggetto var)
         var_map = {v.VarName: v for v in model.getVars() if "x[" in v.VarName}
@@ -199,12 +199,9 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     model_full.Params.outputFlag = 1
     model_full.optimize()
     if model_full.SolCount == 0:
-        model_full.computeIIS()
-        model_full.write("modello_fallito.ilp")
-        print("ERROR --> given solution not feasible")
         return None, None
     
-    print("------------BEST INITIAL COST RISOLTO-------------")
+    print("------------ PHASE 2 BEST INITIAL COST RISOLTO-------------")
 
     best_cost = model_full.ObjVal # f(xbar)
     best_sol_x = {k: v.X for k, v in x_full.items() if v.X > 0.5} # xbar per il modello completo
@@ -218,11 +215,11 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     x_lp_full = {}
     if use_wps: # solo per wps perché per ps i pesi sono tutti uguali impostati a 1
         lp_full = model_full.relax()
-        lp_full.Params.outputFlag = 1
+        lp_full.Params.outputFlag = 0
         lp_full.optimize()
         if lp_full.Status == GRB.OPTIMAL:
             x_lp_full = {v.VarName: v.X for v in lp_full.getVars() if "x[" in v.VarName}
-        print("------------RILASSAMENTO LINEARE P2 RISOLTO-------------")
+        print("------------PHASE 2 RILASSAMENTO LINEARE RISOLTO-------------")
 
     iteration = 1
     theta = 1.0 
@@ -263,9 +260,9 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
         
         model_it.Params.SolutionLimit = 1 #appena trova un miglioramento si ferma
         model_it.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
-        model_it.Params.outputFlag = 1
+        model_it.Params.outputFlag = 0
         model_it.optimize()
-        print("------------MODEL_IT RISOLTO-------------")
+        print("------------PHASE 2 LINE 8 MODEL_IT RISOLTO-------------")
         
         if model_it.SolCount > 0:
             # aggiornamento della soluzione
@@ -284,7 +281,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
                     var.ub = 0.0
             model_eval.optimize()
             
-            print("------------OTTIMO AGGIORNATO-------------")
+            print("------------PHASE 2 OTTIMO AGGIORNATO-------------")
             
             best_cost = model_eval.ObjVal
             print(f"New solution's cost = {best_cost}")
