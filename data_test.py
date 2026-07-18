@@ -92,7 +92,7 @@ def esegui_test_di_fattibilita():
     num_pazienti = 20
     seed = 43
     print(f"Generazione istanza iniziale con {num_pazienti} pazienti (Seed: {seed})...")
-    istanza_iniziale = get_dataset(group_type="A", num_patients=num_pazienti, seed=seed)
+    istanza_iniziale = get_dataset(group_type="B", num_patients=num_pazienti, seed=seed)
     
     print("\n" + "=" * 70)
     print(" FASE 1: TEST MODELLO ORIGINALE SU DATASET INIZIALE")
