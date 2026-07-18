@@ -1,5 +1,7 @@
-import sys
-from data_generator import get_dataset
+import gurobipy as gp
+from gurobipy import GRB
+
+from data_generator import get_dataset  
 from model import create_milp_model
 from matheuristic import solve_wps_matheuristic
 from data_try import get_dataset as get_dataset_try
