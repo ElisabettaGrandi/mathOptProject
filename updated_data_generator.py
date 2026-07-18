@@ -11,12 +11,12 @@ FERRY_SCHEDULES = {
         ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]}
     },
     "B": {
-        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
-        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
+        ("Sandnessjoen", "Bjorn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Bjorn", "Sandnessjoen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
+        ("Bjorn", "Lokta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Lokta", "Bjorn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Sandnessjoen", "Lokta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Lokta", "Sandnessjoen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
     }
 }
 
@@ -41,7 +41,7 @@ def get_dataset(gt, num_patients, seed=22):
         regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
 
     else:
-        regions, weights, center_region = ["Sandnessjøen", "Bjørn", "Løkta"], [0.50, 0.30, 0.20], "Sandnessjøen"
+        regions, weights, center_region = ["Sandnessjoen", "Bjorn", "Lokta"], [0.50, 0.30, 0.20], "Sandnessjoen"
 
     max_dt = 23 if group_type == "A" else 18
     avg_dt = 15 if group_type == "A" else 10 
@@ -69,11 +69,11 @@ def get_dataset(gt, num_patients, seed=22):
                 region = "Sekken"
         else:
             if (p_id <= math.ceil(num_patients * 50 / 100 )):
-                region = "Sandnessjøen"
+                region = "Sandnessjoen"
             elif(p_id <= math.ceil(num_patients * 80 / 100 )):
-                region = "Bjørn" 
+                region = "Bjorn" 
             else:
-                region = "Løkta"       
+                region = "Lokta"       
         
         for v_num in range(1, num_visits + 1):
             a = a % 4
@@ -219,7 +219,7 @@ def get_dataset(gt, num_patients, seed=22):
     num_caregivers = math.ceil(total_cg / 7)
     caregivers = []
     qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"health_aid": 1, "assistant": 2, "nurse": 3} 
+    priorities = {"health_aid": 1, "assistant": 2, "nurse": 3}
 
        
 
@@ -256,7 +256,7 @@ def get_dataset(gt, num_patients, seed=22):
         for l2 in locations:
             reg1 = region_mapping[l1]
             reg2 = region_mapping[l2]
-            if reg1 == reg2: 
+            if reg1 == reg2:
                 if l1 == l2:
                     driving_matrix[(l1, l2)] = 0
                 else:
@@ -266,8 +266,8 @@ def get_dataset(gt, num_patients, seed=22):
         driving_matrix[("Center", "Molde")] = 15
         driving_matrix[("Molde", "Center")] = 15
     else:
-        driving_matrix[("Center", "Sandnessjøen")] = 0
-        driving_matrix[("Sandnessjøen", "Center")] = 0
+        driving_matrix[("Center", "Sandnessjoen")] = 0
+        driving_matrix[("Sandnessjoen", "Center")] = 0
 
 
     print(f"DEBUG: Lunghezza liste dopo popolamento:")
@@ -444,11 +444,17 @@ def fill_Lists(location, end, time, stop, c):
 
         rcl = [visit for cost, visit in candidates if cost <= threshold]
 
+        if not rcl:
+            for cost, visit in candidates:
+                if visit[0] not in failed_visits:
+                    failed_visits.append(visit[0])
+            continue
+
+
         rcl_with_difficulty = [(visit, visit_difficulty(visit)) for visit in rcl]
         rcl_sorted = sorted(rcl_with_difficulty, key=lambda x: x[1])
         k = min(3, len(rcl_sorted))
         tryed_visit = random.choice([v for v, _ in rcl_sorted[:k]])
-
 
         
         v_target = tryed_visit[0]
@@ -460,6 +466,7 @@ def fill_Lists(location, end, time, stop, c):
             tryed_visit[0]["end_tw"] = tryed_visit[0]["start_tw"] + tryed_visit[0]["tw_size"]
 
             to_be_added = True
+
             matched_vh = [item for item in vh if item[0] == v_target]
             matched_couple_vh = [item for item in vh if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
             
@@ -514,17 +521,7 @@ def fill_Lists(location, end, time, stop, c):
             
             vn[:] = [item for item in vn if item not in matched_vn and item not in matched_couple_vn]
         else:
-            travel_to = connectLocations(location, f"P_{tryed_visit[1]}", time)
-            travel_back = connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"])
-            total_time = travel_to + tryed_visit[0]["duration"] + travel_back
             
-            print(f"DEBUG: Visita P_{tryed_visit[1]} fallita per caregiver {c['id']}")
-            print(f"  Posizione attuale: {location}, tempo: {time}")
-            print(f"  Viaggio andata: {travel_to} min")
-            print(f"  Durata visita: {tryed_visit[0]['duration']} min")
-            print(f"  Viaggio ritorno: {travel_back} min")
-            print(f"  Tempo totale: {total_time} min")
-            print(f"  Tempo disponibile: {stop - time} min")
             failed_visits.append(v_target)
 
 
@@ -536,12 +533,13 @@ def visit_cost(location, end, time, stop, visit):
     travel = connectLocations(location, patient, time)
     return_trip = connectLocations(patient, end, time + visit[0]["duration"])
 
+    if travel == float('inf') or return_trip == float('inf'):
+        return None
+
     duration = visit[0]["duration"]
 
     arrival = time + travel
 
-    print(f"  visit_cost: P_{visit[1]}, travel={travel}, arrival={arrival}, duration={duration}, stop={stop}")
-    print(f"    arrival + duration = {arrival + duration}, > stop? {arrival + duration > stop}")
 
 
     if arrival + duration > stop:
@@ -566,8 +564,8 @@ def visit_difficulty(x):
     visit, pid = x
 
     return (
-        visit["tw_size"], 
+        visit["tw_size"],
         -visit["duration"],
-        -visit["caregivers_count"], 
+        -visit["caregivers_count"],
         pid
-    )             
+    )
