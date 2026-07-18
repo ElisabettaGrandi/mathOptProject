@@ -7,7 +7,7 @@ from matheuristic import solve_wps_matheuristic
 from data_try import get_dataset as get_dataset_try
 def run_model_test():
     #data = get_dataset("A",13)
-    data = data = get_dataset_try("A",13) 
+    data = data = get_dataset_try("A",30) 
     analyze_dataset(data)
     
     #print(f"  Total caregivers: {len(data['caregivers'])}")

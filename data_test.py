@@ -15,6 +15,7 @@ try:
     from data_from_model import create_milp_model as create_filtered_model
     from data_generator import get_dataset
     from matheuristic import solve_wps_matheuristic
+    from data_try import get_dataset as get_better_dataset
 except ImportError:
     print("[ATTENZIONE] Assicurati che i nomi dei file importati corrispondano ai tuoi file reali.")
     print("In alternativa, incolla qui sopra le definizioni delle funzioni dei tuoi file.")
@@ -89,46 +90,44 @@ def filter_dataset_via_new_model(data):
 def esegui_test_di_fattibilita():
     # 1. Generiamo una nuova istanza (usando il tuo generatore)
     # Impostiamo 15 pazienti su gruppo B per forzare una situazione complessa/infeasible
-    num_pazienti = 20
+    num_pazienti = 30
     seed = 43
-    best = None
-    for i in range(100):
-        print(f"Generazione istanza iniziale con {num_pazienti} pazienti (Seed: {seed})...")
-        #istanza_iniziale = get_dataset(group_type="B", num_patients=num_pazienti, seed=seed)
-        istanza_iniziale = get_dataset_try(gt="B", num_patients=num_pazienti, seed=seed)
-        
-        print("\n" + "=" * 70)
-        print(" FASE 1: TEST MODELLO ORIGINALE SU DATASET INIZIALE")
-        print("=" * 70)
-        
-        # Costruiamo il modello classico di partenza (rigido, senza x_bar)
-        # Nota: Usiamo create_original_model che restituisce solo (model, x, y)
-        modello_originale, _, _ = create_original_model(istanza_iniziale)
-        modello_originale.Params.MIPGap = 0.01      # Ferma il calcolo all'1% di GAP
-        modello_originale.Params.DualReductions = 0 # Evita lo stato di errore (4)
-        modello_originale.optimize()
-        
-        if modello_originale.Status == GRB.INFEASIBLE:
-            print("\n>>> VERDETTO: Il dataset iniziale è INFEASIBLE (Confermato!)")
-        elif modello_originale.Status in [GRB.OPTIMAL, GRB.SUBOPTIMAL]:
-            print("\n>>> VERDETTO: Sorprendentemente questa istanza era già feasible.")
-        else:
-            print(f"\n>>> VERDETTO: Stato del modello non atteso ({modello_originale.Status})")
 
-        seed += 1
+    print(f"Generazione istanza iniziale con {num_pazienti} pazienti (Seed: {seed})...")
+    #istanza_iniziale = get_dataset(group_type="A", num_patients=num_pazienti, seed=seed)
+    istanza_iniziale = get_better_dataset(gt="A", num_patients=num_pazienti, seed=seed)
+    
+    print("\n" + "=" * 70)
+    print(" FASE 1: TEST MODELLO ORIGINALE SU DATASET INIZIALE")
+    print("=" * 70)
+    
+    # Costruiamo il modello classico di partenza (rigido, senza x_bar)
+    # Nota: Usiamo create_original_model che restituisce solo (model, x, y)
+    modello_originale, _, _ = create_original_model(istanza_iniziale)
+    modello_originale.Params.MIPGap = 0.01      # Ferma il calcolo all'1% di GAP
+    modello_originale.Params.DualReductions = 0 # Evita lo stato di errore (4)
+    modello_originale.optimize()
+    
+    if modello_originale.Status == GRB.INFEASIBLE:
+        print("\n>>> VERDETTO: Il dataset iniziale è INFEASIBLE (Confermato!)")
+    elif modello_originale.Status in [GRB.OPTIMAL, GRB.SUBOPTIMAL]:
+        print("\n>>> VERDETTO: Sorprendentemente questa istanza era già feasible.")
+    else:
+        print(f"\n>>> VERDETTO: Stato del modello non atteso ({modello_originale.Status})")
 
-       #print("\n" + "=" * 70)
-        print(" FASE 2: FILTRAGGIO DEL DATASET TRAMITE NUOVO MODELLO")
-        print("=" * 70)
-        
-        # Generiamo il dataset pulito con il filtro matematico
-        dataset_feasible = filter_dataset_via_new_model(istanza_iniziale)
-        
-        if not dataset_feasible or len(dataset_feasible["patients"]) == 0:
-            print("\n[Errore] Il filtro non ha salvato alcun paziente. Prova con un'istanza più grande!")
-            return
 
-        print("\n" + "=" * 70)
+    #print("\n" + "=" * 70)
+    print(" FASE 2: FILTRAGGIO DEL DATASET TRAMITE NUOVO MODELLO")
+    print("=" * 70)
+    
+    # Generiamo il dataset pulito con il filtro matematico
+    dataset_feasible = filter_dataset_via_new_model(istanza_iniziale)
+    
+    if not dataset_feasible or len(dataset_feasible["patients"]) == 0:
+        print("\n[Errore] Il filtro non ha salvato alcun paziente. Prova con un'istanza più grande!")
+        return
+
+    print("\n" + "=" * 70)
     print(" FASE 3: VERIFICA DI FATTIBILITÀ SUL NUOVO DATASET")
     print("=" * 70)
     print("Ora lanciamo il TUO modello di partenza (RIGIDO) usando solo i dati filtrati...")

@@ -5,7 +5,6 @@ import math
 def to_min(hh, mm):
     return hh * 60 + mm
 
-# Definizione schedules dei ferry da tabella del paper [cite: 685]
 FERRY_SCHEDULES = {
     "A": {
         ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]},
@@ -220,7 +219,7 @@ def get_dataset(gt, num_patients, seed=22):
     num_caregivers = math.ceil(total_cg / 7)
     caregivers = []
     qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"health_aid": 1, "assistant": 2, "nurse": 3} # [cite: 694]
+    priorities = {"health_aid": 1, "assistant": 2, "nurse": 3}
 
        
 
@@ -257,7 +256,7 @@ def get_dataset(gt, num_patients, seed=22):
         for l2 in locations:
             reg1 = region_mapping[l1]
             reg2 = region_mapping[l2]
-            if reg1 == reg2:  # stessa regione
+            if reg1 == reg2:
                 if l1 == l2:
                     driving_matrix[(l1, l2)] = 0
                 else:
@@ -294,7 +293,6 @@ def get_dataset(gt, num_patients, seed=22):
         p_id = p["id"]
         for v in p["visits"]:
             if v["start_tw"] == 0 and v["end_tw"] == 0:
-                # Reset dei parametri per renderla facilmente schedulabile
                 v["duration"] = 15
                 v["tw_size"] = 180
                 v["caregivers_count"] = 1
@@ -304,7 +302,6 @@ def get_dataset(gt, num_patients, seed=22):
                 }
                 
                 if len(p["visits"]) == 2:
-                    # Trova l'altra visita dello stesso paziente
                     other_visit = p["visits"][0] if p["visits"][1] == v else p["visits"][1]
                     
                     if other_visit["start_tw"] >= to_min(13, 0):
@@ -312,7 +309,6 @@ def get_dataset(gt, num_patients, seed=22):
                     else:
                         v["start_tw"] = to_min(13, 30)
                 else:
-                    # Paziente con una sola visita: random tra 9:30 e 13:30
                     v["start_tw"] = random.randint(to_min(9, 30), to_min(13, 30))
                 
                 v["end_tw"] = v["start_tw"] + v["tw_size"]
@@ -341,8 +337,6 @@ def connectLocations (loc1, loc2, t):
         tmp = [s for s in FERRY_SCHEDULES[group_type][(reg1, reg2)]["departures"] if s > t]
 
         if not tmp:
-            # Non ci sono più traghetti disponibili dopo il tempo t
-            # Restituisci un valore molto alto per indicare che il viaggio non è fattibile
             return float('inf')
 
         time_to_travel = driving_matrix[(loc1, reg1)] + driving_matrix[(reg2, loc2)] + FERRY_SCHEDULES[group_type][(reg1, reg2)]["duration"] + (min(tmp) - t)
@@ -357,7 +351,6 @@ def complete_Fill_Lists(location, end, time, stop, c):
 
     
     if len(vstar) !=0:
-        # controllo qualità ciclando questo con j
         j = 0
         t = c["qualification"]
         while j < len(vstar):
@@ -391,14 +384,12 @@ def complete_Fill_Lists(location, end, time, stop, c):
                 v1[0][0]["start_tw"] = c["start_time"]
                 v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
                 
-                #aggiungere il blocco in mezzo alle visite (il primo dei 2)
                 complete_Fill_Lists(location, location1, time + v1[0][0]["duration"], stop1, c)
                 complete_Fill_Lists(location1, end, time1, stop, c)
             else:
                 v1[0][0]["start_tw"] = to_min(16, 30) -  v1[0][0]["tw_size"]
                 v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
                 
-                #come sopra, il secondo
                 complete_Fill_Lists(location, location1, time, stop1, c)
                 complete_Fill_Lists(location1, end, time1, stop, c)
                 
@@ -454,9 +445,6 @@ def fill_Lists(location, end, time, stop, c):
         rcl = [visit for cost, visit in candidates if cost <= threshold]
 
         if not rcl:
-            # threshold è probabilmente nan/inf: niente supera il filtro.
-            # Scartiamo tutti i candidati di questo giro e li segniamo come falliti,
-            # così il while non ricicla all'infinito sugli stessi.
             for cost, visit in candidates:
                 if visit[0] not in failed_visits:
                     failed_visits.append(visit[0])
@@ -468,8 +456,6 @@ def fill_Lists(location, end, time, stop, c):
         k = min(3, len(rcl_sorted))
         tryed_visit = random.choice([v for v, _ in rcl_sorted[:k]])
 
-        #_, tryed_visit = visits_list[0]
-
         
         v_target = tryed_visit[0]
         if connectLocations(location, f"P_{tryed_visit[1]}", time) + connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"]) + tryed_visit[0]["duration"] <= stop:
@@ -479,9 +465,8 @@ def fill_Lists(location, end, time, stop, c):
             time = time + travel + tryed_visit[0]["duration"]
             tryed_visit[0]["end_tw"] = tryed_visit[0]["start_tw"] + tryed_visit[0]["tw_size"]
 
-            #v_target = tryed_visit[0]
             to_be_added = True
-                        # 1. Gestione della lista vh (Health Aid)
+
             matched_vh = [item for item in vh if item[0] == v_target]
             matched_couple_vh = [item for item in vh if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
             
@@ -500,7 +485,6 @@ def fill_Lists(location, end, time, stop, c):
             
             vh[:] = [item for item in vh if item not in matched_vh and item not in matched_couple_vh]
 
-            # 2. Gestione della lista va (Assistant)
             matched_va = [item for item in va if item[0] == v_target]
             matched_couple_va = [item for item in va if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
             
@@ -519,7 +503,6 @@ def fill_Lists(location, end, time, stop, c):
             
             va[:] = [item for item in va if item not in matched_va and item not in matched_couple_va]
 
-            # 3. Gestione della lista vn (Nurse)
             matched_vn = [item for item in vn if item[0] == v_target]
             matched_couple_vn = [item for item in vn if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
             
@@ -538,20 +521,7 @@ def fill_Lists(location, end, time, stop, c):
             
             vn[:] = [item for item in vn if item not in matched_vn and item not in matched_couple_vn]
         else:
-            # --- MODIFICA AGGIUNTA ---
-            # Se la visita non è fattibile nei tempi, dobbiamo comunque rimuoverla 
-            # dalle liste globali altrimenti il ciclo ricomincerà daccapo all'infinito.
-            travel_to = connectLocations(location, f"P_{tryed_visit[1]}", time)
-            travel_back = connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"])
-            total_time = travel_to + tryed_visit[0]["duration"] + travel_back
             
-            print(f"DEBUG: Visita P_{tryed_visit[1]} fallita per caregiver {c['id']}")
-            print(f"  Posizione attuale: {location}, tempo: {time}")
-            print(f"  Viaggio andata: {travel_to} min")
-            print(f"  Durata visita: {tryed_visit[0]['duration']} min")
-            print(f"  Viaggio ritorno: {travel_back} min")
-            print(f"  Tempo totale: {total_time} min")
-            print(f"  Tempo disponibile: {stop - time} min")
             failed_visits.append(v_target)
 
 
@@ -570,11 +540,6 @@ def visit_cost(location, end, time, stop, visit):
 
     arrival = time + travel
 
-    # non entra nello shift
-    #if arrival + duration + return_trip > stop:
-
-    print(f"  visit_cost: P_{visit[1]}, travel={travel}, arrival={arrival}, duration={duration}, stop={stop}")
-    print(f"    arrival + duration = {arrival + duration}, > stop? {arrival + duration > stop}")
 
 
     if arrival + duration > stop:
@@ -599,8 +564,8 @@ def visit_difficulty(x):
     visit, pid = x
 
     return (
-        visit["tw_size"],               # finestre piccole prima
-        -visit["duration"],             # visite lunghe prima
-        -visit["caregivers_count"],     # 2 caregiver prima
+        visit["tw_size"],
+        -visit["duration"],
+        -visit["caregivers_count"],
         pid
     )             

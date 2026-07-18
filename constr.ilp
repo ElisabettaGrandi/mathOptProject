@@ -1,0 +1,13 @@
+\ Model Ferry_Model_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+\ Signature: 0x3bd25d26f414a3f0
+Minimize
+ 
+Subject To
+ R8589: y[P_21,1] >= 668
+ R8644: y[P_21,2] <= 844
+ R8663: - y[P_21,1] + y[P_21,2] >= 180
+Bounds
+ y[P_21,1] free
+ y[P_21,2] free
+End
