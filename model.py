@@ -3,10 +3,6 @@ from gurobipy import GRB
 from graph import build_graph
 
 def create_milp_model(data, subgraph_nodes=None):
-    # all_nodes: lista di tuple (ID_nodo, info)
-    # Pazienti: ("P_1", 1) -> (ID, Numero_Visita)
-    # Traghetti: ("F_1->2", departure_time) -> (Rotta, Orario_Partenza)
-    # Center: ("Center", 1) e ("Center", 2)
 
     all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements, big_m_arcs = build_graph(data)
 
