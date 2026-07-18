@@ -14,8 +14,8 @@ def run_scalability():
     seed = 50
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    csv_filename = f"scalability_results_{timestamp}.csv"
-    png_filename = f"scalability_plots_{timestamp}.png"
+    csv_filename = f"scalability_results_{timestamp}_s={seed}.csv"
+    png_filename = f"scalability_plots_{timestamp}_s={seed}.png"
 
     results = []
 
