@@ -12,12 +12,12 @@ FERRY_SCHEDULES = {
         ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]}
     },
     "B": {
-        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
-        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
+        ("Sandnessjoen", "Bjorn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Bjorn", "Sandnessjoen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
+        ("Bjorn", "Lokta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Lokta", "Bjorn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
+        ("Sandnessjoen", "Lokta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
+        ("Lokta", "Sandnessjoen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
     }
 }
 
@@ -42,7 +42,7 @@ def get_dataset(gt, num_patients, seed=22):
         regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
 
     else:
-        regions, weights, center_region = ["Sandnessjøen", "Bjørn", "Løkta"], [0.50, 0.30, 0.20], "Sandnessjøen"
+        regions, weights, center_region = ["Sandnessjoen", "Bjorn", "Lokta"], [0.50, 0.30, 0.20], "Sandnessjoen"
 
     max_dt = 23 if group_type == "A" else 18
     avg_dt = 15 if group_type == "A" else 10 
@@ -70,11 +70,11 @@ def get_dataset(gt, num_patients, seed=22):
                 region = "Sekken"
         else:
             if (p_id <= math.ceil(num_patients * 50 / 100 )):
-                region = "Sandnessjøen"
+                region = "Sandnessjoen"
             elif(p_id <= math.ceil(num_patients * 80 / 100 )):
-                region = "Bjørn" 
+                region = "Bjorn" 
             else:
-                region = "Løkta"       
+                region = "Lokta"       
         
         for v_num in range(1, num_visits + 1):
             a = a % 4
@@ -267,8 +267,8 @@ def get_dataset(gt, num_patients, seed=22):
         driving_matrix[("Center", "Molde")] = 15
         driving_matrix[("Molde", "Center")] = 15
     else:
-        driving_matrix[("Center", "Sandnessjøen")] = 0
-        driving_matrix[("Sandnessjøen", "Center")] = 0
+        driving_matrix[("Center", "Sandnessjoen")] = 0
+        driving_matrix[("Sandnessjoen", "Center")] = 0
 
 
     print(f"DEBUG: Lunghezza liste dopo popolamento:")
@@ -453,6 +453,16 @@ def fill_Lists(location, end, time, stop, c):
 
         rcl = [visit for cost, visit in candidates if cost <= threshold]
 
+        if not rcl:
+            # threshold è probabilmente nan/inf: niente supera il filtro.
+            # Scartiamo tutti i candidati di questo giro e li segniamo come falliti,
+            # così il while non ricicla all'infinito sugli stessi.
+            for cost, visit in candidates:
+                if visit[0] not in failed_visits:
+                    failed_visits.append(visit[0])
+            continue
+
+
         rcl_with_difficulty = [(visit, visit_difficulty(visit)) for visit in rcl]
         rcl_sorted = sorted(rcl_with_difficulty, key=lambda x: x[1])
         k = min(3, len(rcl_sorted))
@@ -553,6 +563,9 @@ def visit_cost(location, end, time, stop, visit):
     travel = connectLocations(location, patient, time)
     return_trip = connectLocations(patient, end, time + visit[0]["duration"])
 
+    if travel == float('inf') or return_trip == float('inf'):
+        return None
+
     duration = visit[0]["duration"]
 
     arrival = time + travel
@@ -590,4 +603,4 @@ def visit_difficulty(x):
         -visit["duration"],             # visite lunghe prima
         -visit["caregivers_count"],     # 2 caregiver prima
         pid
-    )             
+    )
