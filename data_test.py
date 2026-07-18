@@ -12,7 +12,7 @@ from gurobipy import GRB
 # - 'generatore_dati' contenga get_dataset e FERRY_SCHEDULES
 try:
     from model import create_milp_model as create_original_model
-    from data_from_model import create_milp_model as create_filtered_model
+    from data_from_model import filter_with_milp as create_filtered_model
     from data_generator import get_dataset
     from matheuristic import solve_wps_matheuristic
 except ImportError:
