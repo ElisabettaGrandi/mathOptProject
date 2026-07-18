@@ -1,0 +1,85 @@
+import time
+import pandas as pd
+import matplotlib.pyplot as plt
+from model import create_milp_model
+from data_generator import get_dataset as get_rough_data
+from data_from_model import filter_dataset_via_model as get_filtered_data
+from matheuristic import solve_wps_matheuristic
+
+def run_scalability():
+    sizes = [5, 10, 15, 20]
+    group_type = "A"
+    seed = 43
+
+    results = []
+
+    for num_pat in sizes:
+        print(f"Number of patients: {num_pat}")
+
+        rough_data = get_rough_data(group_type, num_pat, seed)
+        data = get_filtered_data(rough_data)
+
+        print(f"\nSolving MILP")
+        milp_model, x, y = create_milp_model(data)
+        milp_model.Params.TimeLimit = 1800 # time limit di mezz'ora
+        milp_model.Params.OutputFlag = 1
+        start_time = time.time()
+        milp_model.optimize()
+        milp_time = time.time() - start_time
+
+        if milp_model.SolCount > 0:
+            milp_obj = milp_model.ObjVal
+        else:
+            milp_obj = None
+
+        print(f"\nSolving WPS")
+        wps_obj, wps_time = solve_wps_matheuristic(data)
+
+        print(f"\nSolving PS")
+        ps_obj, ps_time = solve_wps_matheuristic(data, use_wps=False)
+
+        results.append({
+            "Patients": num_pat,
+            "MILP_Obj": milp_obj,
+            "MILP_Time": round(milp_time, 2),
+            "WPS_Obj": wps_obj,
+            "WPS_Time": round(wps_time, 2),
+            "PS_Obj": ps_obj,
+            "PS_Time": round(ps_time, 2)
+        })
+        
+    df = pd.DataFrame(results)
+    print("Scalability Analysis\n")
+    print(df.to_string(index=False))
+
+    df.to_csv("scalability_results.csv", index=False)
+
+    fig, (exePlot, objPlot) = plt.subplots(1, 2, figsize=(14, 6))
+
+    exePlot.plot(df["Patients"], df["MILP_Time"], marker='o', color='crimson', label='MILP', linewidth=2)
+    exePlot.plot(df["Patients"], df["WPS_Time"], marker='s', color='navy', label='WPS', linewidth=2)
+    exePlot.plot(df["Patients"], df["PS_Time"], marker='^', color='darkorange', label='PS', linewidth=2)
+    exePlot.set_title("Execution Time")
+    exePlot.set_xlabel("Number of Patients")
+    exePlot.set_ylabel("Time (seconds)")
+    exePlot.grid(True, linestyle='--', alpha=0.7)
+    exePlot.legend()
+
+    df_plot_obj = df.dropna(subset=["WPS_Obj", "PS_Obj"])
+    if not df_plot_obj.empty:
+        if df["MILP_Obj"].notna().any():
+            objPlot.plot(df["Patients"], df["MILP_Obj"], marker='o', color='crimson', label='MILP', linestyle='--')
+        objPlot.plot(df["Patients"], df["WPS_Obj"], marker='s', color='navy', label='WPS')
+        objPlot.plot(df["Patients"], df["PS_Obj"], marker='^', color='darkorange', label='PS')
+    objPlot.set_title("Optimum value")
+    objPlot.set_xlabel("Number of Patients")
+    objPlot.set_ylabel("Optimum value")
+    objPlot.grid(True, linestyle='--', alpha=0.7)
+    objPlot.legend()
+
+    plt.tight_layout()
+    plt.savefig("scalability_plots.png", dpi=300)
+    plt.show()
+
+if __name__ == "__main__":
+    run_scalability()
