@@ -91,7 +91,6 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=1800, use_wps=Tr
     model, x, y = create_milp_model(data, subgraph_nodes)
     model.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
     model.Params.outputFlag = 0
-    model.Params.outputFlag = 0 
     model.optimize()
     
     if model.Status not in [GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.TIME_LIMIT] or model.SolCount == 0:
