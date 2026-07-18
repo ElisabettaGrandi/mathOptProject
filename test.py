@@ -1,3 +1,4 @@
+import time
 from model import create_milp_model
 from data_generator import get_dataset as get_rough_data
 from data_from_model import filter_dataset_via_model as get_filtered_data
@@ -15,10 +16,12 @@ def run_test():
     milp_model, x, y = create_milp_model(data)
     milp_model.Params.TimeLimit = 1800 # time limit di mezz'ora
     milp_model.Params.OutputFlag = 1
+    start_time = time.time()
     milp_model.optimize()
+    milp_time = time.time() - start_time
 
     if milp_model.SolCount > 0:
-        print(f"MILP RESULTS Optimum found: {milp_model.ObjVal} Time elapsed: ")
+        print(f"MILP RESULTS Optimum found: {milp_model.ObjVal} Time elapsed: {milp_time:.2f}s")
     else:
         print(f"Cannot resolve MILP. Status: {milp_model.Status}")
 
