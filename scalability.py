@@ -1,8 +1,10 @@
+from datetime import datetime
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
 from model import create_milp_model
 from data_generator import get_dataset as get_rough_data
+from updated_data_generator import get_dataset as get_rough_updated_data
 from data_from_model import filter_dataset_via_model as get_filtered_data
 from matheuristic import solve_wps_matheuristic
 from gurobipy import GRB
@@ -19,16 +21,21 @@ def milp_time_callback(model, where):
 
 
 def run_scalability():
-    sizes = [10, 15]
+    sizes = [10, 15, 20]
     group_type = "A"
-    seed = 43
+    seed = 50
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    csv_filename = f"scalability_results_{timestamp}_s={seed}.csv"
+    png_filename = f"scalability_plots_{timestamp}_s={seed}.png"
 
     results = []
 
     for num_pat in sizes:
         print(f"Number of patients: {num_pat}")
 
-        rough_data = get_rough_data(group_type, num_pat, seed)
+        #rough_data = get_rough_data(group_type, num_pat, seed)
+        rough_data = get_rough_updated_data(group_type, num_pat, seed)
         data = get_filtered_data(rough_data)
 
         print(f"\nSolving MILP")
@@ -91,7 +98,7 @@ def run_scalability():
     print("Scalability Analysis\n")
     print(df.to_string(index=False))
 
-    df.to_csv("scalability_results.csv", index=False)
+    df.to_csv(csv_filename, index=False)
 
     fig, (exePlot, objPlot) = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -117,7 +124,7 @@ def run_scalability():
     objPlot.legend()
 
     plt.tight_layout()
-    plt.savefig("scalability_plots.png", dpi=300)
+    plt.savefig(png_filename, dpi=300)
     plt.show()
 
 if __name__ == "__main__":

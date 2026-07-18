@@ -69,7 +69,7 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
             
     return weights
 
-def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=True):
+def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=1800, use_wps=True):
     start_time = time.time()
     all_nodes, valid_arcs, travel_times, _, _, _, _= build_graph(data)
     
@@ -91,6 +91,7 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     model, x, y = create_milp_model(data, subgraph_nodes)
     model.Params.TimeLimit = max(10, time_limit - (time.time() - start_time))
     model.Params.outputFlag = 0
+    model.Params.outputFlag = 0 
     model.optimize()
     
     if model.Status not in [GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.TIME_LIMIT] or model.SolCount == 0:
@@ -202,9 +203,6 @@ def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=3600, use_wps=Tr
     model_full.Params.outputFlag = 0
     model_full.optimize()
     if model_full.SolCount == 0:
-        model_full.computeIIS()
-        model_full.write("modello_fallito.ilp")
-        print("ERROR --> given solution not feasible")
         return None, None
     
     #print("------------BEST INITIAL COST RISOLTO-------------")
