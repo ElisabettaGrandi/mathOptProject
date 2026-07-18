@@ -4,9 +4,10 @@ from gurobipy import GRB
 from data_generator import get_dataset  
 from model import create_milp_model
 from matheuristic import solve_wps_matheuristic
-
+from data_try import get_dataset as get_dataset_try
 def run_model_test():
-    data = get_dataset("A",13) 
+    #data = get_dataset("A",13)
+    data = data = get_dataset_try("A",13) 
     analyze_dataset(data)
     
     #print(f"  Total caregivers: {len(data['caregivers'])}")
@@ -99,7 +100,7 @@ def analyze_dataset(data):
         print(f"  - ID {cg['id']:02d} | {cg['qualification']:<10} | pr: {cg['priority']} | Working Mins: {cg['start_time']} - {cg['end_time']}")
 
     print(f"\nPatients and visits:")
-    for p in data['patients'][:10]:
+    for p in data['patients'][:15]:
         print(f"  - P_{p['id']} (Region: {p['region']})")
         for v in p['visits']:
             print(f"    ▪ Visit {v['visit_num']} | {v['duration']} min | TW: [{v['start_tw']}, {v['end_tw']}] | Req. cg: {v['caregivers_count']}")

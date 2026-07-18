@@ -83,6 +83,7 @@ def get_dataset(gt, num_patients, seed=22):
             d = d % 10
             if p_id in rand2:
                 cg_count = 2
+                total_cg += 1
                 if d <= 1:
                     req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 1, "health_aid": 2}}
                 elif d <= 4:
@@ -93,6 +94,7 @@ def get_dataset(gt, num_patients, seed=22):
                     req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
                 else:
                     req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
+                d += 1
 
 
             else:
@@ -107,7 +109,8 @@ def get_dataset(gt, num_patients, seed=22):
                     req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
                 else:      
                     req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-            
+                c += 1
+
             if a == 0:
                 duration = 15
             elif a == 1:
@@ -124,8 +127,7 @@ def get_dataset(gt, num_patients, seed=22):
                 tw_size = 120
             a += 1
             b += 1
-            c += 1
-            d += 1
+            
 
             start_tw = 0
             p_visits.append({
@@ -152,54 +154,65 @@ def get_dataset(gt, num_patients, seed=22):
             if p_id in rand2:
                 a = p_id
 
-        if v["skill_requirements"]["min"]["nurse"] == 2:
-            vn.append((v, p_id))
-            vn.append((v, p_id))   
-        if v["skill_requirements"]["min"]["assistant"] == 2: 
-            va.append((v, p_id))
-            va.append((v, p_id))
-            vn.append((v, p_id))
-            vn.append((v, p_id))    
-        if v["skill_requirements"]["min"]["nurse"] == 1:
-            vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["nurse"] == 2:
+            if v["skill_requirements"]["min"]["nurse"] == 2:
                 vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["assistant"] == 1:
-                va.append((v, p_id))
-                vn.append((v, p_id))
-            vn.append((v, p_id)) 
-            if v["skill_requirements"]["max"]["assistant"] == 2:     
+                vn.append((v, p_id))   
+            if v["skill_requirements"]["min"]["assistant"] == 2: 
                 va.append((v, p_id))
                 va.append((v, p_id))
                 vn.append((v, p_id))
-                vn.append((v, p_id)) 
-            if v["skill_requirements"]["max"]["health_aid"] == 1:
+                vn.append((v, p_id))    
+            if v["skill_requirements"]["min"]["nurse"] == 1:
+                vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["nurse"] == 2:
+                    vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 1:
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 2:     
+                    va.append((v, p_id))
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+                    vn.append((v, p_id)) 
+                if v["skill_requirements"]["max"]["health_aid"] == 1:
+                    vh.append((v, p_id))
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+            if v["skill_requirements"]["min"]["assistant"] == 1:
+                va.append((v, p_id))
+                vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 2:
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["nurse"] == 1:
+                    vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["health_aid"] == 1:
+                    vh.append((v, p_id))
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+            if v["skill_requirements"]["min"]["health_aid"] == 1:
                 vh.append((v, p_id))
                 va.append((v, p_id))
                 vn.append((v, p_id))
-        if v["skill_requirements"]["min"]["assistant"] == 1:
-            va.append((v, p_id))
-            vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["assistant"] == 2:
-                va.append((v, p_id))
-                vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["nurse"] == 1:
-                vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["health_aid"] == 1:
-                vh.append((v, p_id))
-                va.append((v, p_id))
-                vn.append((v, p_id))
-        if v["skill_requirements"]["min"]["health_aid"] == 1:
-            vh.append((v, p_id))
-            va.append((v, p_id))
-            vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["health_aid"] == 2:
-                vh.append((v, p_id))
-                va.append((v, p_id))
-                vn.append((v, p_id))
-            if v["skill_requirements"]["max"]["assistant"] == 1:
-                va.append((v, p_id))
-                vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["health_aid"] == 2:
+                    vh.append((v, p_id))
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 1:
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+            if (v["skill_requirements"]["min"]["nurse"] == 0 and 
+                v["skill_requirements"]["min"]["assistant"] == 0 and 
+                v["skill_requirements"]["min"]["health_aid"] == 0):
+                if  v["skill_requirements"]["max"]["health_aid"] == 1:
+                    vh.append((v, p_id))
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+                if  v["skill_requirements"]["max"]["health_aid"] == 0:
+                    va.append((v, p_id))
+                    vn.append((v, p_id))
+
+
 
         
 
@@ -258,10 +271,15 @@ def get_dataset(gt, num_patients, seed=22):
         driving_matrix[("Sandnessjøen", "Center")] = 0
 
 
-
+    print(f"DEBUG: Lunghezza liste dopo popolamento:")
+    print(f"  vh: {len(vh)} visite")
+    print(f"  va: {len(va)} visite")
+    print(f"  vn: {len(vn)} visite")
 
     sorted_caregivers = sorted(caregivers, key=lambda c: c["priority"])
-
+    vn.sort(key=visit_difficulty)
+    va.sort(key=visit_difficulty)
+    vh.sort(key=visit_difficulty)
 
     for c in sorted_caregivers:
         location = "Center"
@@ -270,7 +288,34 @@ def get_dataset(gt, num_patients, seed=22):
         stop = c["end_time"]
 
         complete_Fill_Lists(location, end, time, stop, c)
-    
+        print("EXIT caregiver", c["id"])
+
+    for p in patients:
+        p_id = p["id"]
+        for v in p["visits"]:
+            if v["start_tw"] == 0 and v["end_tw"] == 0:
+                # Reset dei parametri per renderla facilmente schedulabile
+                v["duration"] = 15
+                v["tw_size"] = 180
+                v["caregivers_count"] = 1
+                v["skill_requirements"] = {
+                    "min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
+                    "max": {"nurse": 0, "assistant": 1, "health_aid": 1}
+                }
+                
+                if len(p["visits"]) == 2:
+                    # Trova l'altra visita dello stesso paziente
+                    other_visit = p["visits"][0] if p["visits"][1] == v else p["visits"][1]
+                    
+                    if other_visit["start_tw"] >= to_min(13, 0):
+                        v["start_tw"] = to_min(9, 0)
+                    else:
+                        v["start_tw"] = to_min(13, 30)
+                else:
+                    # Paziente con una sola visita: random tra 9:30 e 13:30
+                    v["start_tw"] = random.randint(to_min(9, 30), to_min(13, 30))
+                
+                v["end_tw"] = v["start_tw"] + v["tw_size"]
     
     return {
         "instance_name": f"{group_type}-{num_patients}-{num_caregivers}-{total_cg}",
@@ -286,20 +331,32 @@ def get_dataset(gt, num_patients, seed=22):
 
 
 
-def connectLocations (loc1, loc2):
+def connectLocations (loc1, loc2, t):
     reg1 = region_mapping[loc1]
     reg2 = region_mapping[loc2]
     if reg1 == reg2:
         time_to_travel = driving_matrix[(loc1, loc2)]
 
     else:
-        time_to_travel = driving_matrix[(loc1, reg1)] + driving_matrix[(reg2, loc2)] + FERRY_SCHEDULES[group_type][(reg1, reg2)]["duration"]
+        tmp = [s for s in FERRY_SCHEDULES[group_type][(reg1, reg2)]["departures"] if s > t]
+
+        if not tmp:
+            # Non ci sono più traghetti disponibili dopo il tempo t
+            # Restituisci un valore molto alto per indicare che il viaggio non è fattibile
+            return float('inf')
+
+        time_to_travel = driving_matrix[(loc1, reg1)] + driving_matrix[(reg2, loc2)] + FERRY_SCHEDULES[group_type][(reg1, reg2)]["duration"] + (min(tmp) - t)
     return time_to_travel
 
 
 def complete_Fill_Lists(location, end, time, stop, c):
+
+    print("----------------")
+    print(c["id"], c["qualification"])
+    print("vstar", len(vstar))
+
+    
     if len(vstar) !=0:
-        v1 = vstar[0]
         # controllo qualità ciclando questo con j
         j = 0
         t = c["qualification"]
@@ -312,127 +369,225 @@ def complete_Fill_Lists(location, end, time, stop, c):
                 v1 = vstar[j]
                 break
         if j == len(vstar):
+            print("CALL fill_lists")
             fill_Lists(location, end, time, stop, c)
             return 
+        vstar.pop(j)
+
+        print("POP", v1[0][1])
+
+        location1 = f"P_{v1[0][1]}"
+        stop1 = v1[-1]
+        time1 = v1[1]
         if v1[3] == 1:
-            location1 = f"P_{v1[0][1]}"
-            stop1 = v1[-1]
-            time1 = v1[1]
             
-            for v_rem in vstar:
-                if v_rem == v1:
-                    vstar.remove(v_rem)
-                    break
+            
             complete_Fill_Lists(location, location1, time , stop1, c)
             complete_Fill_Lists(location1, end, time1, stop, c)
         else:
 
-            location1 = f"P_{v1[0][1]}"
-            stop1 = v1[-1]
-            time1 = v1[1]
 
-            if time + connectLocations(location, location1) +v1[0][0]["duration"] <=  stop1 - 120:
-                for v_rem in vstar:
-                    if v_rem == v1:
-                        vstar.remove(v_rem)
-                        break
+            if time + connectLocations(location, location1, time) +v1[0][0]["duration"] <=  stop1 - 120:
+                v1[0][0]["start_tw"] = c["start_time"]
+                v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
+                
                 #aggiungere il blocco in mezzo alle visite (il primo dei 2)
-                complete_Fill_Lists(location, location1, time, time + connectLocations(location, location1), c)
-                complete_Fill_Lists(location1, end, time + connectLocations(location, location1) +v1[0][0]["duration"], stop, c)
+                complete_Fill_Lists(location, location1, time + v1[0][0]["duration"], stop1, c)
+                complete_Fill_Lists(location1, end, time1, stop, c)
             else:
-                for v_rem in vstar:
-                    if v_rem == v1:
-                        vstar.remove(v_rem)
-                        break
+                v1[0][0]["start_tw"] = to_min(16, 30) -  v1[0][0]["tw_size"]
+                v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
+                
                 #come sopra, il secondo
-                complete_Fill_Lists(location, location1, time, stop - connectLocations( location1, end)- v1[0][0]["duration"], c)
-                complete_Fill_Lists(location1, end, time + connectLocations(location, location1) +v1[0][0]["duration"], stop, c)
+                complete_Fill_Lists(location, location1, time, stop1, c)
+                complete_Fill_Lists(location1, end, time1, stop, c)
                 
             
         
     else:
+        print("CALL fill_lists")
         fill_Lists(location, end, time, stop, c)
 
 
 
 def fill_Lists(location, end, time, stop, c):
-    s = 0
+    global vh, va, vn
+
+    print(f"DEBUG fill_Lists: caregiver {c['id']} ({c['qualification']})")
+    print(f"  vh: {len(vh)}, va: {len(va)}, vn: {len(vn)}")
+
+    failed_visits = []
+    
     while True:
         if c["qualification"] == "health_aid":
-            if s < len(vh):
-                tryed_visit = vh[s]
-            else:
-                break
+            visits_list = vh
         if c["qualification"] == "assistant":
-            if s < len(va):
-                tryed_visit = va[s]
-            else:
-                break
+            visits_list = va
         if c["qualification"] == "nurse":
-            if s < len(vn):
-                tryed_visit = vn[s]
-            else:
-                break
-        if connectLocations(location, f"P_{tryed_visit[1]}") + connectLocations(f"P_{tryed_visit[1]}", end) + tryed_visit[0]["duration"] <= stop:
-            travel = connectLocations(location, f"P_{tryed_visit[1]}") 
+            visits_list = vn
+
+        candidates = []
+
+        for visit in visits_list:
+
+            if visit[0] in failed_visits:
+                continue
+
+            cost = visit_cost(
+                location,
+                end,
+                time,
+                stop,
+                visit
+            )
+
+            if cost is not None:
+                candidates.append((cost, visit))
+
+        if not candidates:
+            break 
+        costs = [cc[0] for cc in candidates]
+        min_cost = min(costs)
+        max_cost = max(costs)
+        threshold = min_cost + 0.3 * (max_cost - min_cost)
+
+        rcl = [visit for cost, visit in candidates if cost <= threshold]
+
+        rcl_with_difficulty = [(visit, visit_difficulty(visit)) for visit in rcl]
+        rcl_sorted = sorted(rcl_with_difficulty, key=lambda x: x[1])
+        k = min(3, len(rcl_sorted))
+        tryed_visit = random.choice([v for v, _ in rcl_sorted[:k]])
+
+        #_, tryed_visit = visits_list[0]
+
+        
+        v_target = tryed_visit[0]
+        if connectLocations(location, f"P_{tryed_visit[1]}", time) + connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"]) + tryed_visit[0]["duration"] <= stop:
+            travel = connectLocations(location, f"P_{tryed_visit[1]}", time) 
             location = f"P_{tryed_visit[1]}"
-            tryed_visit[0]["start_tw"] = time + travel -(tryed_visit[0]["tw_size"] / 2) 
+            tryed_visit[0]["start_tw"] = max( to_min(8,0), time + travel -  (tryed_visit[0]["tw_size"] / 2))
             time = time + travel + tryed_visit[0]["duration"]
             tryed_visit[0]["end_tw"] = tryed_visit[0]["start_tw"] + tryed_visit[0]["tw_size"]
 
-            i = 0
-            while i < len(vh):
-                if vh[i][0] == tryed_visit[0]:
-                    if i + 1 < len(vh) and vh[i][0] == vh[i+1][0]:
-                        vstar.append((vh[i], time, vh[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                        vh.remove(vh[i+1])
-                        if i + 1 < len(vh) and vh[i][1] == vh[i+1][1]:
-                            vstar.append((vh[i+1], time, vh[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))                                
-                            vh.remove(vh[i+1])
-                    if i + 1 < len(vh) and vh[i][1] == vh[i+1][1]:
-                        vstar.append((vh[i+1], time, vh[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))
-                        vh.remove(vh[i+1])
-                        if i + 1 < len(vh) and vh[i][0] == vh[i+1][0]:
-                            vh.remove(vh[i+1])
-                            vstar.append((vh[i+1], time, vh[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                    vh.remove(vh[i])
-                    break
-                i += 1
-            i = 0
-            while i < len(va):
-                if va[i][0] == tryed_visit[0]:
-                    if i + 1 < len(va) and va[i][0] == va[i+1][0]:
-                        vstar.append((va[i], time, va[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                        va.remove(va[i+1])
-                        if i + 1 < len(va) and va[i][1] == va[i+1][1]:
-                            vstar.append((va[i+1], time, va[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))                                
-                            va.remove(va[i+1])
-                    if i + 1 < len(va) and va[i][1] == va[i+1][1]:
-                        vstar.append((va[i+1], time, va[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))
-                        va.remove(va[i+1])
-                        if i + 1 < len(va) and va[i][0] == va[i+1][0]:
-                            va.remove(va[i+1])
-                            vstar.append((va[i+1], time, va[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                    va.remove(va[i])
-                    break
-                i += 1
-            i = 0
-            while i < len(vn):
-                if vn[i][0] == tryed_visit[0]:
-                    if i + 1 < len(vn) and vn[i][0] == vn[i+1][0]:
-                        vstar.append((vn[i], time, vn[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                        vn.remove(vn[i+1])
-                        if i + 1 < len(vn) and vn[i][1] == vn[i+1][1]:
-                            vstar.append((vn[i+1], time, vn[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))                                
-                            vn.remove(vn[i+1])
-                    if i + 1 < len(vn) and vn[i][1] == vn[i+1][1]:
-                        vstar.append((vn[i+1], time, vn[i][0]["duration"], 0, time - travel - tryed_visit[0]["duration"]))
-                        vn.remove(vn[i+1])
-                        if i + 1 < len(vn) and vn[i][0] == vn[i+1][0]:
-                            vn.remove(vn[i+1])
-                            vstar.append((vn[i+1], time, vn[i][0]["duration"], 1, time - travel - tryed_visit[0]["duration"]))
-                    vn.remove(vn[i])
-                    break
-                i += 1
-        s += 1
-                
+            #v_target = tryed_visit[0]
+            to_be_added = True
+                        # 1. Gestione della lista vh (Health Aid)
+            matched_vh = [item for item in vh if item[0] == v_target]
+            matched_couple_vh = [item for item in vh if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
+            
+            if len(matched_vh) > 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_vh[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if len(matched_couple_vh) >= 1:
+                        vstar.append((matched_couple_vh[0], time, v_target["duration"], 0, time - v_target["duration"]))
+            elif len(matched_couple_vh) >= 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_couple_vh[0], time, v_target["duration"], 0, time - v_target["duration"]))
+                    if len(matched_couple_vh) == 2:
+                        vstar.append((matched_couple_vh[1], time, v_target["duration"], 0, time - v_target["duration"]))
+            
+            vh[:] = [item for item in vh if item not in matched_vh and item not in matched_couple_vh]
+
+            # 2. Gestione della lista va (Assistant)
+            matched_va = [item for item in va if item[0] == v_target]
+            matched_couple_va = [item for item in va if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
+            
+            if len(matched_va) > 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_va[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if len(matched_couple_va) >= 1:
+                        vstar.append((matched_couple_va[0], time, v_target["duration"], 0, time - v_target["duration"]))
+            elif len(matched_couple_va) >= 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_couple_va[0], time, v_target["duration"], 0, time - v_target["duration"]))
+                    if len(matched_couple_va) == 2:
+                        vstar.append((matched_couple_va[1], time, v_target["duration"], 0, time - v_target["duration"]))
+            
+            va[:] = [item for item in va if item not in matched_va and item not in matched_couple_va]
+
+            # 3. Gestione della lista vn (Nurse)
+            matched_vn = [item for item in vn if item[0] == v_target]
+            matched_couple_vn = [item for item in vn if item[1] == tryed_visit[1] and item[0]["skill_requirements"] == v_target["skill_requirements"] and item[0] != v_target]
+            
+            if len(matched_vn) > 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_vn[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if len(matched_couple_vn) >= 1:
+                        vstar.append((matched_couple_vn[0], time, v_target["duration"], 0, time - v_target["duration"]))
+            elif len(matched_couple_vn) >= 1:
+                if to_be_added:
+                    to_be_added = False
+                    vstar.append((matched_couple_vn[0], time, v_target["duration"], 0, time - v_target["duration"]))
+                    if len(matched_couple_vn) == 2:
+                        vstar.append((matched_couple_vn[1], time, v_target["duration"], 0, time - v_target["duration"]))
+            
+            vn[:] = [item for item in vn if item not in matched_vn and item not in matched_couple_vn]
+        else:
+            # --- MODIFICA AGGIUNTA ---
+            # Se la visita non è fattibile nei tempi, dobbiamo comunque rimuoverla 
+            # dalle liste globali altrimenti il ciclo ricomincerà daccapo all'infinito.
+            travel_to = connectLocations(location, f"P_{tryed_visit[1]}", time)
+            travel_back = connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"])
+            total_time = travel_to + tryed_visit[0]["duration"] + travel_back
+            
+            print(f"DEBUG: Visita P_{tryed_visit[1]} fallita per caregiver {c['id']}")
+            print(f"  Posizione attuale: {location}, tempo: {time}")
+            print(f"  Viaggio andata: {travel_to} min")
+            print(f"  Durata visita: {tryed_visit[0]['duration']} min")
+            print(f"  Viaggio ritorno: {travel_back} min")
+            print(f"  Tempo totale: {total_time} min")
+            print(f"  Tempo disponibile: {stop - time} min")
+            failed_visits.append(v_target)
+
+
+
+def visit_cost(location, end, time, stop, visit):
+
+    patient = f"P_{visit[1]}"
+
+    travel = connectLocations(location, patient, time)
+    return_trip = connectLocations(patient, end, time + visit[0]["duration"])
+
+    duration = visit[0]["duration"]
+
+    arrival = time + travel
+
+    # non entra nello shift
+    #if arrival + duration + return_trip > stop:
+
+    print(f"  visit_cost: P_{visit[1]}, travel={travel}, arrival={arrival}, duration={duration}, stop={stop}")
+    print(f"    arrival + duration = {arrival + duration}, > stop? {arrival + duration > stop}")
+
+
+    if arrival + duration > stop:
+        return None
+
+    slack = stop - (arrival + duration + return_trip)
+
+    ferry_penalty = 0
+    if region_mapping[location] != region_mapping[patient]:
+        ferry_penalty = 40
+
+    score = (
+        10 * travel +
+        duration +
+        ferry_penalty -
+        0.2 * slack
+    )
+
+    return score  
+
+def visit_difficulty(x):
+    visit, pid = x
+
+    return (
+        visit["tw_size"],               # finestre piccole prima
+        -visit["duration"],             # visite lunghe prima
+        -visit["caregivers_count"],     # 2 caregiver prima
+        pid
+    )             

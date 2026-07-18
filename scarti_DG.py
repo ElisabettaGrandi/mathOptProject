@@ -1,10 +1,15 @@
 import random
 import math
 
+
 def to_min(hh, mm):
     return hh * 60 + mm
 
-# definizione schedules dei ferry
+def from_min(m):
+    """Funzione di utilità per leggere i minuti in formato HH:MM"""
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+# Definizione schedules dei ferry da tabella del paper
 FERRY_SCHEDULES = {
     "A": {
         ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]},
@@ -20,140 +25,160 @@ FERRY_SCHEDULES = {
     }
 }
 
-def get_dataset(group_type, num_patients, seed=43): #usati: 42, 
-    random.seed(seed)
+vn = []
+va = []
+vh = []
+vstar = []
+region_mapping = []
+driving_matrix = {}
+group_type = None
+patients = []
+
+
+def print_dataset_summary(result):
+    """Funzione creata appositamente per stampare l'output finale in modo leggibile"""
+    print("\n" + "="*50)
+    print(f" DATASET GENERATO: {result['instance_name']}")
+    print("="*50)
+    print(f"Tipo Gruppo: {result['group_type']}")
+    print(f"Numero di Caregiver Creati: {len(result['caregivers'])}")
+    print(f"Numero di Pazienti Creati: {len(result['patients'])}")
     
+    print("\n--- DETTAGLIO CAREGIVER ---")
+    for c in result['caregivers']:
+        print(f"ID {c['id']}: Qualifica={c['qualification']:<10} | Priorità={c['priority']} | Turno: {from_min(c['start_time'])} - {from_min(c['end_time'])}")
+        
+    print("\n--- DETTAGLIO PAZIENTI E VISITE ---")
+    for p in result['patients']:
+        print(f"Paziente ID {p['id']} ({p['region']}):")
+        for v in p['visits']:
+            print(f"  -> Visita #{v['visit_num']} (Node {v['node_id']}): Durata={v['duration']}m | Tw_Size={v['tw_size']}m | Caregivers Richiesti={v['caregivers_count']}")
+
+
+def get_dataset(gt, num_patients, seed=22):
+    global region_mapping, group_type, vn, va, vh, vstar, patients, driving_matrix
+    
+    # Reset delle liste globali per evitare accumuli tra chiamate successive
+    vn, va, vh, vstar, patients, driving_matrix = [], [], [], [], [], {}
+    group_type = gt
+
+    random.seed(seed)
     if group_type == "A":
         regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
     else:
         regions, weights, center_region = ["Sandnessjøen", "Bjørn", "Løkta"], [0.50, 0.30, 0.20], "Sandnessjøen"
-        
-    patients = []
-    total_caregiver_visits_needed = 0
+
+    total_cg = 0
     node_counter = 1
+    a, c, d = 0, 0, 0
+    b = random.randint(0, 3)
     
+    rand1 = random.sample(range(1, num_patients + 1), math.floor(num_patients * 30 / 100))
+    rand2 = random.sample(range(1, num_patients + 1), math.floor(num_patients * 30 / 100))
+    
+    print(f"[DEBUG] Pazienti con 2 visite (rand1): {rand1}")
+    print(f"[DEBUG] Pazienti con requisiti skill complessi (rand2): {rand2}")
+
     for p_id in range(1, num_patients + 1):
-        region = random.choices(regions, weights=weights)[0]
-        num_visits = 1 if random.random() < 0.70 else 2
-        
         p_visits = []
+        if p_id in rand1:
+            num_visits = 2
+            total_cg += 2
+        else:
+            num_visits = 1
+            total_cg += 1
+            
+        if group_type == "A":
+            region = "Molde" if (p_id <= math.ceil(num_patients * 65 / 100)) else "Sekken"
+        else:
+            if (p_id <= math.ceil(num_patients * 50 / 100)):
+                region = "Sandnessjøen"
+            elif (p_id <= math.ceil(num_patients * 80 / 100)):
+                region = "Bjørn"
+            else:
+                region = "Løkta"
         
         for v_num in range(1, num_visits + 1):
-            duration = random.choice([15, 30, 45, 60])
-            tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
+            a, b, c, d = a % 4, b % 4, c % 10, d % 10
             
-            max_dt = 23 if group_type == "A" else 18
-
-            if region == center_region:
-            # caso in cui il paziente è nella regione centrale -> turno finisce max alle 16 - tempo di guida massimo per arrivare al center
-                limite_pomeridiano_centro = to_min(16, 0) - max_dt
-                
-                if num_visits == 1:
-                    max_start = limite_pomeridiano_centro - duration
-                    min_start = to_min(8, 23 if group_type == "A" else 18)
-                    start_tw = random.randint(min_start, max(min_start, max_start))
-                else:
-                    if v_num == 1:
-                        # prima visita: nel caso peggiore deve iniziare sufficientemente presto da consentire che la seconda visita venga svolta
-                        # quindi può slittare al massimo di tw_size + duration + 120 (stacco tra prima e seconda) + 60 (durata max seconda)
-                        max_start = limite_pomeridiano_centro - tw_size - duration - 120 - 60
-                        min_start = to_min(8, 23 if group_type == "A" else 18)
-                        start_tw = random.randint(min_start, max(min_start, max_start))
-                        last_end_worst_case = start_tw + tw_size + duration
-                    else:
-                        # seconda visita: nel caso peggiore inizia dopo last_end_worst_case + 120
-                        min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_centro - duration
-                        start_tw = random.randint(min_start, max(min_start, max_start))
+            if p_id in rand2:
+                cg_count = 2
+                if d <= 1: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 1, "health_aid": 2}}
+                elif d <= 4: req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
+                elif d <= 7: req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
+                elif d == 8: req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
+                else: req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
             else:
-                # caso in cui il paziente è sulle isole
-                ferry_to = FERRY_SCHEDULES[group_type][(center_region, region)]["duration"]
-                #ferry_from = FERRY_SCHEDULES[group_type][(region, center_region)]["duration"]
-                earliest_start = to_min(8, 46 if group_type == "A" else 36) + ferry_to
-                
-                # le due corse aggiunte sopra in FERRY_SCHEDULES le avevamo aggiunte per provare a risolvere
-                # originariamente le ultime corse sono negli orari qui sotto
-                ultimo_traghetto_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
-                limite_pomeridiano_isola = ultimo_traghetto_ritorno - max_dt
-                
-                if num_visits == 1:
-                    max_start = limite_pomeridiano_isola - duration
-                    start_tw = random.randint(earliest_start, max(earliest_start, max_start))
-                else:
-                    if v_num == 1:
-                        # prima visita: come sopra
-                        max_start = limite_pomeridiano_isola - tw_size - duration - 120 - 60
-                        start_tw = random.randint(earliest_start, max(earliest_start, max_start))
-                        last_end_worst_case = start_tw + tw_size + duration
-                    else:
-                        # seconda visita: come sopra
-                        min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_isola - duration
-                        start_tw = random.randint(min_start, max(min_start, max_start))
+                cg_count = 1
+                if c <= 1: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
+                elif c <= 3: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
+                elif c <= 5: req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
+                elif c <= 7: req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
+                else: req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
             
-            cg_count = 1 if random.random() < 0.70 else 2
-            total_caregiver_visits_needed += cg_count
+            duration = 15 if a == 0 else (30 if a == 1 else (45 if a == 2 else 60))
+            tw_size = 60 if b == 0 else (180 if b == 3 else 120)
             
-            req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
-                          "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
-            
-            # le probabilità sono state impostate arbitrariamente cercando di allargare il più possibile le scelte più flessibili
-            if cg_count == 1:
-                r = random.random()
-                if r < 0.10: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-                elif r < 0.20: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
-                elif r < 0.30: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                elif r < 0.65: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
-            else: 
-                r = random.random()
-                if r < 0.05: 
-                    req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
-                elif r < 0.10: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
-                elif r < 0.50: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
-                elif r < 0.80: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 1, "assistant": 1, "health_aid": 2}}
+            a, b, c, d = a+1, b+1, c+1, d+1
+            start_tw = 0
             
             p_visits.append({
                 "visit_num": v_num,
                 "node_id": node_counter,
                 "duration": duration,
                 "start_tw": start_tw,
-                "end_tw": start_tw + tw_size,
+                "end_tw": start_tw,
+                "tw_size": tw_size,
                 "caregivers_count": cg_count,
                 "skill_requirements": req_skills
             })
             node_counter += 1
-            
+
         patients.append({"id": p_id, "region": region, "visits": p_visits})
 
-    num_caregivers = math.ceil(total_caregiver_visits_needed / 7)
-    max_simultaneous_needed = max([v["caregivers_count"] for p in patients for v in p["visits"]])
-    num_caregivers = max(num_caregivers, max_simultaneous_needed, 8)
+    # Popolamento liste qualifiche (vn, va, vh)
+    for p in patients:
+        p_id = p["id"]
+        for v in p["visits"]:
+            if v["skill_requirements"]["min"]["nurse"] == 2:
+                vn.extend([(v, p_id), (v, p_id)])
+            if v["skill_requirements"]["min"]["assistant"] == 2:
+                va.extend([(v, p_id), (v, p_id)])
+                vn.extend([(v, p_id), (v, p_id)])
+            if v["skill_requirements"]["min"]["nurse"] == 1:
+                vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["nurse"] == 2: vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 1: va.extend([(v, p_id)]); vn.extend([(v, p_id), (v, p_id)])
+                if v["skill_requirements"]["max"]["assistant"] == 2: va.extend([(v, p_id), (v, p_id)]); vn.extend([(v, p_id), (v, p_id)])
+                if v["skill_requirements"]["max"]["health_aid"] == 1: vh.append((v, p_id)); va.append((v, p_id)); vn.append((v, p_id))
+            if v["skill_requirements"]["min"]["assistant"] == 1:
+                va.append((v, p_id)); vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 2: va.append((v, p_id)); vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["nurse"] == 1: vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["health_aid"] == 1: vh.append((v, p_id)); va.append((v, p_id)); vn.append((v, p_id))
+            if v["skill_requirements"]["min"]["health_aid"] == 1:
+                vh.append((v, p_id)); va.append((v, p_id)); vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["health_aid"] == 2: vh.append((v, p_id)); va.append((v, p_id)); vn.append((v, p_id))
+                if v["skill_requirements"]["max"]["assistant"] == 1: va.append((v, p_id)); vn.append((v, p_id))
+
+    num_caregivers = math.ceil(total_cg / 7)
     caregivers = []
     qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"nurse": 3, "assistant": 2, "health_aid": 1}
-    
+    priorities = {"health_aid": 1, "assistant": 2, "nurse": 3}
+
     for c_id in range(1, num_caregivers + 1):
         qual = qualifications[(c_id - 1) % 3]
-        working_shift = {"start": to_min(8, 0), "end": to_min(16, 0)} if c_id % 2 == 0 else {"start": to_min(9, 0), "end": to_min(17, 0)}
+        working_shift = {"start": to_min(8, 0), "end": to_min(16, 0)} if (c_id - 1) % 2 == 0 else {"start": to_min(9, 0), "end": to_min(17, 0)}
         caregivers.append({
-            "id": c_id, "qualification": qual, "priority": priorities[qual],
-            "start_time": working_shift["start"], "end_time": working_shift["end"]
+            "id": c_id, 
+            "qualification": qual, 
+            "priority": priorities[qual],
+            "start_time": working_shift["start"], 
+            "end_time": working_shift["end"]
         })
 
     ferry_ports = set()
     current_ferry_schedules = FERRY_SCHEDULES[group_type]
-    
     for origin, destination in current_ferry_schedules.keys():
         ferry_ports.add(origin)
         ferry_ports.add(destination)
@@ -161,567 +186,40 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42,
     region_mapping = {"Center": center_region}
     for p in patients:
         region_mapping[f"P_{p['id']}"] = p["region"]
-
     for port in ferry_ports:
         region_mapping[port] = port    
     
     locations = ["Center"] + [f"P_{p['id']}" for p in patients] + list(ferry_ports)
-    driving_matrix = {}
     avg_dt = 15 if group_type == "A" else 10
     for l1 in locations:
         for l2 in locations:
-            reg1 = region_mapping[l1]
-            reg2 = region_mapping[l2]
-            if reg1 == reg2:  # stessa regione
-                if l1 == l2:
-                    driving_matrix[(l1, l2)] = 0
-                else:
-                    val = max(1, min(23 if group_type == "A" else 18, int(random.gauss(avg_dt, 4))))
-                    driving_matrix[(l1, l2)] = val
-
-    return {
-        "instance_name": f"{group_type}-{num_patients}-{num_caregivers}-{total_caregiver_visits_needed}",
-        "group_type": group_type,
-        "region_mapping": region_mapping,
-        "ferry_schedules": FERRY_SCHEDULES[group_type],
-        "caregivers": caregivers,
-        "patients": patients,
-        "driving_matrix": driving_matrix,
-        "min_interval_consecutive_visits": 120
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import random
-import math
-
-def to_min(hh, mm):
-    return hh * 60 + mm
-
-# Definizione schedules dei ferry da tabella del paper [cite: 685]
-FERRY_SCHEDULES = {
-    "A": {
-        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15)]},
-        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(16,15)]}
-    },
-    "B": {
-        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]},
-        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(16,30)]},
-        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(16,30)]},
-        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(16,30)]},
-        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]},
-        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(16,0)]}
-    }
-}
-
-def get_dataset(group_type, num_patients, seed=43):
-    random.seed(seed)
-    
-    if group_type == "A":
-        regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
-    else:
-        regions, weights, center_region = ["Sandnessjøen", "Bjørn", "Løkta"], [0.50, 0.30, 0.20], "Sandnessjøen"
-        
-    # -------------------------------------------------------------
-    # FASE 1: Generazione preventiva dei Pazienti e calcolo Visite Totali
-    # -------------------------------------------------------------
-    raw_patients = []
-    total_caregiver_visits_needed = 0
-    
-    for p_id in range(1, num_patients + 1):
-        region = random.choices(regions, weights=weights)[0]
-        num_visits = 1 if random.random() < 0.70 else 2 # 70% singola visita, 30% doppia [cite: 696]
-        is_island = (region != center_region)
-        
-        p_visits_base = []
-        for v_num in range(1, num_visits + 1):
-            duration = random.choice([15, 30, 45, 60]) # Distribuzione durate [cite: 700]
-            cg_count = 1 if random.random() < 0.70 else 2 # 70% un operatore, 30% due [cite: 697]
-            total_caregiver_visits_needed += cg_count
-            
-            # Requisiti qualifiche fedeli alle specifiche del paper [cite: 698, 699]
-            req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
-                          "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
-            
-            if cg_count == 1:
-                r = random.random()
-                if r < 0.20: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-                elif r < 0.40: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
-                elif r < 0.60: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                elif r < 0.80: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
-            else: 
-                r = random.random()
-                if r < 0.10: 
-                    req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
-                elif r < 0.20: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
-                elif r < 0.50: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
-                elif r < 0.80: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 1, "assistant": 1, "health_aid": 2}}
-            
-            p_visits_base.append({
-                "patient_id": p_id,
-                "region": region,
-                "visit_num": v_num,
-                "duration": duration,
-                "caregivers_count": cg_count,
-                "skill_requirements": req_skills,
-                "is_island": is_island
-            })
-            
-        raw_patients.append({
-            "id": p_id,
-            "region": region,
-            "visits": p_visits_base,
-            "is_island": is_island,
-            "num_visits": num_visits
-        })
-
-    # -------------------------------------------------------------
-    # FASE 2: Generazione dello Staff secondo la formula esatta del paper [cite: 690]
-    # -------------------------------------------------------------
-    num_caregivers = math.ceil(total_caregiver_visits_needed / 7)
-    max_simultaneous_needed = max([v["caregivers_count"] for p in raw_patients for v in p["visits"]])
-    num_caregivers = max(num_caregivers, max_simultaneous_needed)
-    
-    caregivers = []
-    qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"nurse": 3, "assistant": 2, "health_aid": 1} # [cite: 694]
-    
-    for c_id in range(1, num_caregivers + 1):
-        qual = qualifications[(c_id - 1) % 3]
-        working_shift = {"start": to_min(8, 0), "end": to_min(16, 0)} if c_id % 2 == 0 else {"start": to_min(9, 0), "end": to_min(17, 0)} # 
-        caregivers.append({
-            "id": c_id, "qualification": qual, "priority": priorities[qual],
-            "start_time": working_shift["start"], "end_time": working_shift["end"]
-        })
-
-    # Timeline dello staff per qualifica
-    timeline_capacity = {
-        qual: [sum(1 for cg in caregivers if cg["qualification"] == qual and cg["start_time"] <= t < cg["end_time"]) 
-               for t in range(0, 1440)]
-        for qual in qualifications
-    }
-
-    max_dt = 23 if group_type == "A" else 18
-    avg_dt = 15 if group_type == "A" else 10
-
-    # -------------------------------------------------------------
-    # FASE 3: Schedulazione Gerarchica "Ad-Hoc" (Triage dei Vincoli)
-    # -------------------------------------------------------------
-    # Ordiniamo i pazienti dal più vincolato (Isola + 2 visite) al meno vincolato (Centro + 1 visita)
-    # Chiave di ordinamento (is_island: True viene prima, num_visits: 2 viene prima)
-    # Calcoliamo un indice di severità per ciascun paziente per fare il Triage preventivo
-    for patient in raw_patients:
-        score = 0
-        if patient["is_island"]:
-            score += 1000  # Priorità massima alle isole
-        
-        # Se ha almeno una visita che richiede 2 caregiver contemporaneamente, è criticissimo
-        has_synchronized_visit = any(v["caregivers_count"] == 2 for v in patient["visits"])
-        if has_synchronized_visit:
-            score += 500
-            
-        # Se ha due visite (vincolo dei 120 minuti)
-        if patient["num_visits"] == 2:
-            score += 100
-            
-        patient["severity_score"] = score
-
-    # Ordiniamo i pazienti dal più severo al meno severo
-    raw_patients.sort(key=lambda x: -x["severity_score"])
-
-    scheduled_visits_map = {}
-
-    for patient in raw_patients:
-        p_id = patient["id"]
-        patient["visits"].sort(key=lambda x: x["visit_num"])
-        
-        fine_visita_precedente = None
-
-        for visit in patient["visits"]:
-            v_num = visit["visit_num"]
-            duration = visit["duration"]
-            cg_needed = visit["caregivers_count"]
-            
-            req = visit["skill_requirements"]
-            target_qual = "health_aid"
-            if req["min"]["nurse"] > 0:
-                target_qual = "nurse"
-            elif req["min"]["assistant"] > 0:
-                target_qual = "assistant"
-
-            # Definizione orizzonte temporale base
-            search_start = to_min(8, 0)
-            search_end = to_min(17, 0)
-
-            # Finestre per le isole
-            if visit["is_island"]:
-                ferry_to = FERRY_SCHEDULES[group_type][(center_region, visit["region"])]["duration"]
-                ultimo_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
-                
-                earliest_ferry = FERRY_SCHEDULES[group_type][(center_region, visit["region"])]["departures"][0]
-                earliest_start = earliest_ferry + ferry_to + max_dt
-                
-                # Sottraiamo ferry_to per garantire al caregiver di avere il tempo di imbarcarsi per il ritorno
-                latest_start = ultimo_ritorno - max_dt - duration - ferry_to
-                
-                search_start = max(search_start, earliest_start)
-                search_end = min(search_end, latest_start)
-            else:
-                search_start = search_start + max_dt
-                search_end = search_end - max_dt - duration
-
-            # =========================================================================
-            # NUOVA MODIFICA: Controllo preventivo sulla Visita 1 (Se il paziente ne ha 2)
-            # =========================================================================
-            if patient["num_visits"] == 2 and v_num == 1:
-                # Recuperiamo la durata programmata della seconda visita
-                durata_seconda_visita = patient["visits"][1]["duration"]
-                
-                # Calcoliamo l'orario entro cui deve tassativamente finire la visita 1:
-                # fine_1 + 120 min stacco + durata_visita_2 + tempo_guida_rientro <= fine_turno (17:00)
-                orario_limite_fine_1 = to_min(17, 0) - max_dt - durata_seconda_visita - 120
-                
-                # Riduciamo search_end per la visita 1
-                search_end = min(search_end, orario_limite_fine_1 - duration)
-            # =========================================================================
-
-            # SE È LA SECONDA VISITA: Forziamo il vincolo di distanziamento di 120 minuti dal fine della prima
-            if v_num == 2 and fine_visita_precedente is not None:
-                search_start = max(search_start, fine_visita_precedente + 120)
-
-            best_start = None
-            min_load_penalty = float('inf')
-            
-            possible_starts = list(range(search_start, search_end - duration + 1, 15))
-            
-            # Se la finestra temporale si stringe troppo, allunghiamo l'orizzonte fino a fine turno
-            if not possible_starts:
-                search_end_extended = to_min(17, 0) - max_dt - duration
-                possible_starts = list(range(search_start, search_end_extended + 1, 15))
-                if not possible_starts:
-                    possible_starts = [search_start]
-
-            for start_t in possible_starts:
-                end_t = start_t + duration
-                available = min(timeline_capacity[target_qual][t] for t in range(start_t, end_t))
-                
-                if available >= cg_needed:
-                    load_penalty = sum(1.0 / (timeline_capacity[target_qual][t] + 0.1) for t in range(start_t, end_t))
-                    if load_penalty < min_load_penalty:
-                        min_load_penalty = load_penalty
-                        best_start = start_t
-
-            # Fallback qualifiche
-            if best_start is None:
-                for alt_qual in qualifications:
-                    for start_t in possible_starts:
-                        end_t = start_t + duration
-                        if min(timeline_capacity[alt_qual][t] for t in range(start_t, end_t)) >= cg_needed:
-                            best_start = start_t
-                            target_qual = alt_qual
-                            break
-                    if best_start is not None:
-                        break
-
-            # Fallback matematico estremo: mantieni intatto il distanziamento
-            if best_start is None:
-                best_start = possible_starts[0]
-
-            final_start = best_start
-            final_end = final_start + duration
-            
-            for t in range(final_start, final_end):
-                timeline_capacity[target_qual][t] = max(0, timeline_capacity[target_qual][t] - cg_needed)
-
-            fine_visita_precedente = final_end
-
-            # Generazione Time Window reale [cite: 702, 711]
-            tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
-            max_shift = max(0, tw_size - duration)
-            shift = random.randint(0, max_shift) if max_shift > 0 else 0
-            
-            start_tw = max(to_min(8, 0), final_start - shift)
-            end_tw = start_tw + tw_size
-
-            scheduled_visits_map[(p_id, v_num)] = {
-                "visit_num": v_num,
-                "duration": duration,
-                "start_tw": start_tw,
-                "end_tw": end_tw,
-                "caregivers_count": cg_needed,
-                "skill_requirements": req
-            }
-
-    # -------------------------------------------------------------
-    # FASE 4: Costruzione Struttura Dati Finale
-    # -------------------------------------------------------------
-    ferry_ports = set()
-    for origin, destination in FERRY_SCHEDULES[group_type].keys():
-        ferry_ports.add(origin)
-        ferry_ports.add(destination)
-
-    region_mapping = {"Center": center_region}
-    for p in raw_patients:
-        region_mapping[f"P_{p['id']}"] = p["region"]
-    for port in ferry_ports:
-        region_mapping[port] = port
-
-    # Driving Matrix
-    locations = ["Center"] + [f"P_{p['id']}" for p in raw_patients] + list(ferry_ports)
-    driving_matrix = {}
-    for l1 in locations:
-        for l2 in locations:
-            reg1 = region_mapping[l1]
-            reg2 = region_mapping[l2]
+            reg1, reg2 = region_mapping[l1], region_mapping[l2]
             if reg1 == reg2:
-                if l1 == l2:
-                    driving_matrix[(l1, l2)] = 0
-                else:
-                    val = max(1, min(max_dt, int(random.gauss(avg_dt, 4))))
-                    driving_matrix[(l1, l2)] = val
-
-    final_patients = []
-    node_counter = 1
-    for p in raw_patients:
-        p_visits = []
-        for v_num in range(1, len(p["visits"]) + 1):
-            sched_data = scheduled_visits_map[(p["id"], v_num)]
-            sched_data["node_id"] = node_counter
-            node_counter += 1
-            p_visits.append(sched_data)
-            
-        final_patients.append({
-            "id": p["id"],
-            "region": p["region"],
-            "visits": p_visits
-        })
-
-    return {
-        "instance_name": f"{group_type}-{num_patients}-{num_caregivers}-{total_caregiver_visits_needed}",
-        "group_type": group_type,
-        "region_mapping": region_mapping,
-        "ferry_schedules": FERRY_SCHEDULES[group_type],
-        "caregivers": caregivers,
-        "patients": final_patients,
-        "driving_matrix": driving_matrix,
-        "min_interval_consecutive_visits": 120
-    }
-
-
-
-import random
-import math
-
-def to_min(hh, mm):
-    return hh * 60 + mm
-
-# definizione schedules dei ferry
-FERRY_SCHEDULES = {
-    "A": {
-        ("Molde", "Sekken"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]},
-        ("Sekken", "Molde"): {"duration": 30, "departures": [to_min(8,15), to_min(9,15), to_min(10,15), to_min(11,15), to_min(12,15), to_min(13,15), to_min(14,15), to_min(15,15), to_min(16,15)]}
-    },
-    "B": {
-        ("Sandnessjøen", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Bjørn", "Sandnessjøen"): {"duration": 25, "departures": [to_min(8,30), to_min(9,30), to_min(10,30), to_min(11,30), to_min(12,30), to_min(13,30), to_min(14,30), to_min(15,30), to_min(16,30)]},
-        ("Bjørn", "Løkta"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Løkta", "Bjørn"): {"duration": 25, "departures": [to_min(8,0), to_min(8,30), to_min(9,0), to_min(9,30), to_min(10,0), to_min(10,30), to_min(11,0), to_min(11,30), to_min(12,0), to_min(12,30), to_min(13,0), to_min(13,30), to_min(14,0), to_min(14,30), to_min(15,0), to_min(15,30), to_min(16,0), to_min(16,30)]},
-        ("Sandnessjøen", "Løkta"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]},
-        ("Løkta", "Sandnessjøen"): {"duration": 60, "departures": [to_min(8,0), to_min(9,0), to_min(10,0), to_min(11,0), to_min(12,0), to_min(13,0), to_min(14,0), to_min(15,0), to_min(16,0)]}
-    }
-}
-
-def get_dataset(group_type, num_patients, seed=43): #usati: 42, 
-    random.seed(seed)
-    
+                if l1 == l2: driving_matrix[(l1, l2)] = 0
+                else: driving_matrix[(l1, l2)] = max(1, min(23 if group_type == "A" else 18, int(random.gauss(avg_dt, 4))))
+                
     if group_type == "A":
-        regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
+        driving_matrix[("Center", "Molde")] = 15
+        driving_matrix[("Molde", "Center")] = 15
     else:
-        regions, weights, center_region = ["Sandnessjøen", "Bjørn", "Løkta"], [0.50, 0.30, 0.20], "Sandnessjøen"
+        driving_matrix[("Center", "Sandnessjøen")] = 0
+        driving_matrix[("Sandnessjøen", "Center")] = 0
+
+    sorted_caregivers = sorted(caregivers, key=lambda c: c["priority"])
+    vn.sort(key=visit_difficulty)
+    va.sort(key=visit_difficulty)
+    vh.sort(key=visit_difficulty)
+
+    print(f"\n[DEBUG] Inizio allocazione visite. Lunghezza liste iniziali: VN={len(vn)}, VA={len(va)}, VH={len(vh)}")
+
+    for c in sorted_caregivers:
+        print(f"  -> Allocazione per Caregiver {c['id']} ({c['qualification']})")
+        complete_Fill_Lists("Center", "Center", c["start_time"], c["end_time"], c)
         
-    patients = []
-    total_caregiver_visits_needed = 0
-    node_counter = 1
+    print(f"[DEBUG] Fine allocazione. Lunghezza liste residue: VN={len(vn)}, VA={len(va)}, VH={len(vh)}, VSTAR={len(vstar)}\n")
     
-    for p_id in range(1, num_patients + 1):
-        region = random.choices(regions, weights=weights)[0]
-        num_visits = 1 if random.random() < 0.70 else 2
-        
-        p_visits = []
-        
-        for v_num in range(1, num_visits + 1):
-            duration = random.choice([15, 30, 45, 60])
-            tw_size = random.choices([60, 120, 180], weights=[0.25, 0.50, 0.25])[0]
-            
-            max_dt = 23 if group_type == "A" else 18
-
-            if region == center_region:
-            # caso in cui il paziente è nella regione centrale -> turno finisce max alle 16 - tempo di guida massimo per arrivare al center
-                limite_pomeridiano_centro = to_min(16, 0) - max_dt
-                
-                if num_visits == 1:
-                    max_start = limite_pomeridiano_centro - duration
-                    min_start = to_min(8, 23 if group_type == "A" else 18)
-                    start_tw = random.randint(min_start, max(min_start, max_start))
-                else:
-                    if v_num == 1:
-                        # prima visita: nel caso peggiore deve iniziare sufficientemente presto da consentire che la seconda visita venga svolta
-                        # quindi può slittare al massimo di tw_size + duration + 120 (stacco tra prima e seconda) + 60 (durata max seconda)
-                        max_start = limite_pomeridiano_centro - tw_size - duration - 120 - 60
-                        min_start = to_min(8, 23 if group_type == "A" else 18)
-                        start_tw = random.randint(min_start, max(min_start, max_start))
-                        last_end_worst_case = start_tw + tw_size + duration
-                    else:
-                        # seconda visita: nel caso peggiore inizia dopo last_end_worst_case + 120
-                        min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_centro - duration
-                        start_tw = random.randint(min_start, max(min_start, max_start))
-            else:
-                # caso in cui il paziente è sulle isole
-                ferry_to = FERRY_SCHEDULES[group_type][(center_region, region)]["duration"]
-                #ferry_from = FERRY_SCHEDULES[group_type][(region, center_region)]["duration"]
-                earliest_start = to_min(8, 46 if group_type == "A" else 36) + ferry_to
-                
-                # le due corse aggiunte sopra in FERRY_SCHEDULES le avevamo aggiunte per provare a risolvere
-                # originariamente le ultime corse sono negli orari qui sotto
-                ultimo_traghetto_ritorno = to_min(16, 15) if group_type == "A" else to_min(16, 30)
-                limite_pomeridiano_isola = ultimo_traghetto_ritorno - max_dt
-                
-                if num_visits == 1:
-                    max_start = limite_pomeridiano_isola - duration
-                    start_tw = random.randint(earliest_start, max(earliest_start, max_start))
-                else:
-                    if v_num == 1:
-                        # prima visita: come sopra
-                        max_start = limite_pomeridiano_isola - tw_size - duration - 120 - 60
-                        start_tw = random.randint(earliest_start, max(earliest_start, max_start))
-                        last_end_worst_case = start_tw + tw_size + duration
-                    else:
-                        # seconda visita: come sopra
-                        min_start = last_end_worst_case + 120
-                        max_start = limite_pomeridiano_isola - duration
-                        start_tw = random.randint(min_start, max(min_start, max_start))
-            
-            cg_count = 1 if random.random() < 0.70 else 2
-            total_caregiver_visits_needed += cg_count
-            
-            req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, 
-                          "max": {"nurse": 0, "assistant": 0, "health_aid": 0}}
-            
-            # le probabilità sono state impostate arbitrariamente cercando di allargare il più possibile le scelte più flessibili
-            if cg_count == 1:
-                r = random.random()
-                if r < 0.10: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 0, "health_aid": 0}}
-                elif r < 0.20: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 0}}
-                elif r < 0.30: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 0, "assistant": 0, "health_aid": 1}}
-                elif r < 0.65: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 1, "assistant": 1, "health_aid": 0}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 0}, "max": {"nurse": 0, "assistant": 1, "health_aid": 1}}
-            else: 
-                r = random.random()
-                if r < 0.05: 
-                    req_skills = {"min": {"nurse": 2, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 0, "health_aid": 0}}
-                elif r < 0.10: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 2, "health_aid": 0}, "max": {"nurse": 0, "assistant": 2, "health_aid": 0}}
-                elif r < 0.50: 
-                    req_skills = {"min": {"nurse": 1, "assistant": 0, "health_aid": 0}, "max": {"nurse": 2, "assistant": 1, "health_aid": 1}}
-                elif r < 0.80: 
-                    req_skills = {"min": {"nurse": 0, "assistant": 1, "health_aid": 0}, "max": {"nurse": 1, "assistant": 2, "health_aid": 1}}
-                else:          
-                    req_skills = {"min": {"nurse": 0, "assistant": 0, "health_aid": 1}, "max": {"nurse": 1, "assistant": 1, "health_aid": 2}}
-            
-            p_visits.append({
-                "visit_num": v_num,
-                "node_id": node_counter,
-                "duration": duration,
-                "start_tw": start_tw,
-                "end_tw": start_tw + tw_size,
-                "caregivers_count": cg_count,
-                "skill_requirements": req_skills
-            })
-            node_counter += 1
-            
-        patients.append({"id": p_id, "region": region, "visits": p_visits})
-
-    num_caregivers = math.ceil(total_caregiver_visits_needed / 7)
-    max_simultaneous_needed = max([v["caregivers_count"] for p in patients for v in p["visits"]])
-    num_caregivers = max(num_caregivers, max_simultaneous_needed, 8)
-    caregivers = []
-    qualifications = ["nurse", "assistant", "health_aid"]
-    priorities = {"nurse": 3, "assistant": 2, "health_aid": 1}
-    
-    for c_id in range(1, num_caregivers + 1):
-        qual = qualifications[(c_id - 1) % 3]
-        working_shift = {"start": to_min(8, 0), "end": to_min(16, 0)} if c_id % 2 == 0 else {"start": to_min(9, 0), "end": to_min(17, 0)}
-        caregivers.append({
-            "id": c_id, "qualification": qual, "priority": priorities[qual],
-            "start_time": working_shift["start"], "end_time": working_shift["end"]
-        })
-
-    ferry_ports = set()
-    current_ferry_schedules = FERRY_SCHEDULES[group_type]
-    
-    for origin, destination in current_ferry_schedules.keys():
-        ferry_ports.add(origin)
-        ferry_ports.add(destination)
-
-    region_mapping = {"Center": center_region}
-    for p in patients:
-        region_mapping[f"P_{p['id']}"] = p["region"]
-
-    for port in ferry_ports:
-        region_mapping[port] = port    
-    
-    locations = ["Center"] + [f"P_{p['id']}" for p in patients] + list(ferry_ports)
-    driving_matrix = {}
-    avg_dt = 15 if group_type == "A" else 10
-    for l1 in locations:
-        for l2 in locations:
-            reg1 = region_mapping[l1]
-            reg2 = region_mapping[l2]
-            if reg1 == reg2:  # stessa regione
-                if l1 == l2:
-                    driving_matrix[(l1, l2)] = 0
-                else:
-                    val = max(1, min(23 if group_type == "A" else 18, int(random.gauss(avg_dt, 4))))
-                    driving_matrix[(l1, l2)] = val
-
     return {
-        "instance_name": f"{group_type}-{num_patients}-{num_caregivers}-{total_caregiver_visits_needed}",
+        "instance_name": f"{group_type}-{num_patients}-{num_caregivers}-{total_cg}",
         "group_type": group_type,
         "region_mapping": region_mapping,
         "ferry_schedules": FERRY_SCHEDULES[group_type],
@@ -730,3 +228,157 @@ def get_dataset(group_type, num_patients, seed=43): #usati: 42,
         "driving_matrix": driving_matrix,
         "min_interval_consecutive_visits": 120
     }
+
+def connectLocations(loc1, loc2, t):
+    reg1 = region_mapping[loc1]
+    reg2 = region_mapping[loc2]
+    if reg1 == reg2:
+        return driving_matrix.get((loc1, loc2), 15)
+    else:
+        tmp = [s for s in FERRY_SCHEDULES[group_type][(reg1, reg2)]["departures"] if s > t]
+        if not tmp: return 999  # Salta se non ci sono traghetti disponibili
+        return driving_matrix.get((loc1, reg1), 15) + driving_matrix.get((reg2, loc2), 15) + FERRY_SCHEDULES[group_type][(reg1, reg2)]["duration"] + (min(tmp) - t)
+
+def complete_Fill_Lists(location, end, time, stop, c):
+    global vstar
+    if len(vstar) != 0:
+        v1 = vstar[0]
+        j = 0
+        t = c["qualification"]
+        while j < len(vstar):
+            if t == "assistant" and vstar[j][0][0]["skill_requirements"]["max"]["assistant"] == 0 and vstar[j][0][0]["skill_requirements"]["max"]["health_aid"] == 0:
+                j += 1
+            elif t == "health_aid" and vstar[j][0][0]["skill_requirements"]["max"]["health_aid"] == 0:
+                j += 1
+            else:
+                v1 = vstar[j]
+                break
+        if j == len(vstar):
+            fill_Lists(location, end, time, stop, c)
+            return 
+        if v1[3] == 1:
+            location1 = f"P_{v1[0][1]}"
+            stop1, time1 = v1[-1], v1[1]
+            for v_rem in vstar:
+                if v_rem == v1:
+                    vstar.remove(v_rem)
+                    break
+            complete_Fill_Lists(location, location1, time, stop1, c)
+            complete_Fill_Lists(location1, end, time1, stop, c)
+        else:
+            location1 = f"P_{v1[0][1]}"
+            stop1, time1 = v1[-1], v1[1]
+            if time + connectLocations(location, location1, time) + v1[0][0]["duration"] <= stop1 - 120:
+                v1[0][0]["start_tw"] = c["start_time"]
+                v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
+                for v_rem in vstar:
+                    if v_rem == v1:
+                        vstar.remove(v_rem)
+                        break
+                complete_Fill_Lists(location, location1, time + v1[0][0]["duration"], stop1, c)
+                complete_Fill_Lists(location1, end, time1, stop, c)
+            else:
+                v1[0][0]["start_tw"] = to_min(16, 30) - v1[0][0]["tw_size"]
+                v1[0][0]["end_tw"] = v1[0][0]["start_tw"] + v1[0][0]["tw_size"]
+                for v_rem in vstar:
+                    if v_rem == v1:
+                        vstar.remove(v_rem)
+                        break
+                complete_Fill_Lists(location, location1, time, stop1, c)
+                complete_Fill_Lists(location1, end, time1, stop, c)
+    else:
+        fill_Lists(location, end, time, stop, c)
+
+def fill_Lists(location, end, time, stop, c):
+    global vh, va, vn, vstar
+    s = 0
+    while True:
+        if c["qualification"] == "health_aid":
+            if s < len(vh): visits_list = vh
+            else: break
+        elif c["qualification"] == "assistant":
+            if s < len(va): visits_list = va
+            else: break
+        elif c["qualification"] == "nurse":
+            if s < len(vn): visits_list = vn
+            else: break
+        else:
+            break
+
+        candidates = []
+        for visit in visits_list:
+            cost = visit_cost(location, end, time, stop, visit)
+            if cost is not None:
+                candidates.append((cost, visit))
+
+        if not candidates:
+            break 
+            
+        costs = [cc[0] for cc in candidates]
+        min_cost, max_cost = min(costs), max(costs)
+        threshold = min_cost + 0.3 * (max_cost - min_cost)
+
+        rcl = [visit for cost, visit in candidates if cost <= threshold]
+        rcl_with_difficulty = [(visit, visit_difficulty(visit)) for visit in rcl]
+        rcl_sorted = sorted(rcl_with_difficulty, key=lambda x: x[1])
+        k = min(3, len(rcl_sorted))
+        tryed_visit = random.choice([v for v, _ in rcl_sorted[:k]])
+
+        if connectLocations(location, f"P_{tryed_visit[1]}", time) + connectLocations(f"P_{tryed_visit[1]}", end, time + tryed_visit[0]["duration"]) + tryed_visit[0]["duration"] <= stop:
+            travel = connectLocations(location, f"P_{tryed_visit[1]}", time) 
+            location = f"P_{tryed_visit[1]}"
+            tryed_visit[0]["start_tw"] = max(to_min(8,0), time + travel - (tryed_visit[0]["tw_size"] / 2))
+            time = time + travel + tryed_visit[0]["duration"]
+            tryed_visit[0]["end_tw"] = tryed_visit[0]["start_tw"] + tryed_visit[0]["tw_size"]
+
+            v_target = tryed_visit[0]
+            print(f"    [OK] Assegnata visita Node {v_target['node_id']} a Paziente {tryed_visit[1]}")
+
+            # Rimozione e inserimento in vstar
+            matched_vh = [item for item in vh if item[0] == v_target]
+            if matched_vh:
+                if len(matched_vh) > 1:
+                    vstar.append((matched_vh[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if matched_vh[0][1] == matched_vh[1][1]:
+                        vstar.append((matched_vh[1], time, v_target["duration"], 0, time - v_target["duration"]))
+                vh = [item for item in vh if item[0] != v_target]
+
+            matched_va = [item for item in va if item[0] == v_target]
+            if matched_va:
+                if len(matched_va) > 1:
+                    vstar.append((matched_va[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if matched_va[0][1] == matched_va[1][1]:
+                        vstar.append((matched_va[1], time, v_target["duration"], 0, time - v_target["duration"]))
+                va = [item for item in va if item[0] != v_target]
+
+            matched_vn = [item for item in vn if item[0] == v_target]
+            if matched_vn:
+                if len(matched_vn) > 1:
+                    vstar.append((matched_vn[0], time, v_target["duration"], 1, time - v_target["duration"]))
+                    if matched_vn[0][1] == matched_vn[1][1]:
+                        vstar.append((matched_vn[1], time, v_target["duration"], 0, time - v_target["duration"]))
+                vn = [item for item in vn if item[0] != v_target]
+        s += 1
+
+def visit_cost(location, end, time, stop, visit):
+    patient = f"P_{visit[1]}"
+    travel = connectLocations(location, patient, time)
+    return_trip = connectLocations(patient, end, time + visit[0]["duration"])
+    duration = visit[0]["duration"]
+    arrival = time + travel
+
+    if arrival + duration + return_trip > stop:
+        return None
+
+    slack = stop - (arrival + duration + return_trip)
+    ferry_penalty = 40 if region_mapping[location] != region_mapping[patient] else 0
+    return (10 * travel + duration + ferry_penalty - 0.2 * slack)
+
+def visit_difficulty(x):
+    visit, pid = x
+    return (visit["tw_size"], -visit["duration"], -visit["caregivers_count"], pid)
+
+
+# --- ESEGUIAMO UN TEST PER VEDERE GLI OUTPUT ---
+dataset = get_dataset(gt="A", num_patients=5, seed=42)
+print_dataset_summary(dataset)
