@@ -9,7 +9,6 @@ from data_from_model import filter_dataset_via_model as get_filtered_data
 from matheuristic import solve_wps_matheuristic
 from gurobipy import GRB
 
-
 def milp_time_callback(model, where):
     if where == GRB.Callback.MIPSOL:
         runtime = model.cbGet(GRB.Callback.RUNTIME)
@@ -17,8 +16,6 @@ def milp_time_callback(model, where):
         if sol_count == 0 or model._milp_t_first is None:
             model._milp_t_first = runtime
         model._milp_t_last = runtime
-
-
 
 def run_scalability():
     sizes = [10, 15, 20]
