@@ -6,7 +6,7 @@ from graph import build_graph
 
 def milp_feasible_nodes(data, subgraph_nodes=None):
     all_nodes, valid_arcs, travel_times, service_durations, time_windows, visit_requirements, big_m_arcs = build_graph(data)
-
+    
     valid_arcs = list(set(valid_arcs))
     all_nodes = list(set(all_nodes))
     

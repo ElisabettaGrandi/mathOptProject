@@ -71,6 +71,8 @@ def compute_wps_weights(x_vars, x_incumbent, x_lp, Z=10, t2=2, t3=4):
 
 def solve_wps_matheuristic(data, alpha=0.50, beta=3, time_limit=1800, use_wps=True):
     start_time = time.time()
+    tf = start_time
+    tb = tf
     all_nodes, valid_arcs, travel_times, _, _, _, _= build_graph(data)
     
     ordered_patients = get_ordered_patient_nodes(data, all_nodes)
