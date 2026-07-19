@@ -277,10 +277,10 @@ def get_dataset(gt, num_patients, seed=22):
         driving_matrix[("Sandnessjoen", "Center")] = 0
 
 
-    print(f"DEBUG: Lunghezza liste dopo popolamento:")
-    print(f"  vh: {len(vh)} visite")
-    print(f"  va: {len(va)} visite")
-    print(f"  vn: {len(vn)} visite")
+    #print(f"DEBUG: Lunghezza liste dopo popolamento:")
+    #print(f"  vh: {len(vh)} visite")
+    #print(f"  va: {len(va)} visite")
+    #print(f"  vn: {len(vn)} visite")
 
     sorted_caregivers = sorted(caregivers, key=lambda c: c["priority"])
     vn.sort(key=visit_difficulty)
@@ -294,7 +294,7 @@ def get_dataset(gt, num_patients, seed=22):
         stop = c["end_time"]
 
         complete_Fill_Lists(location, end, time, stop, c)
-        print("EXIT caregiver", c["id"])
+        #print("EXIT caregiver", c["id"])
 
     for p in patients:
         p_id = p["id"]
@@ -352,9 +352,9 @@ def connectLocations (loc1, loc2, t):
 
 def complete_Fill_Lists(location, end, time, stop, c):
 
-    print("----------------")
-    print(c["id"], c["qualification"])
-    print("vstar", len(vstar))
+    #print("----------------")
+    #print(c["id"], c["qualification"])
+    #print("vstar", len(vstar))
 
     
     if len(vstar) !=0:
@@ -369,12 +369,12 @@ def complete_Fill_Lists(location, end, time, stop, c):
                 v1 = vstar[j]
                 break
         if j == len(vstar):
-            print("CALL fill_lists")
+            #print("CALL fill_lists")
             fill_Lists(location, end, time, stop, c)
             return 
         vstar.pop(j)
 
-        print("POP", v1[0][1])
+        #print("POP", v1[0][1])
 
         location1 = f"P_{v1[0][1]}"
         stop1 = v1[-1]
@@ -403,7 +403,7 @@ def complete_Fill_Lists(location, end, time, stop, c):
             
         
     else:
-        print("CALL fill_lists")
+        #print("CALL fill_lists")
         fill_Lists(location, end, time, stop, c)
 
 
@@ -411,8 +411,8 @@ def complete_Fill_Lists(location, end, time, stop, c):
 def fill_Lists(location, end, time, stop, c):
     global vh, va, vn
 
-    print(f"DEBUG fill_Lists: caregiver {c['id']} ({c['qualification']})")
-    print(f"  vh: {len(vh)}, va: {len(va)}, vn: {len(vn)}")
+    #print(f"DEBUG fill_Lists: caregiver {c['id']} ({c['qualification']})")
+    #print(f"  vh: {len(vh)}, va: {len(va)}, vn: {len(vn)}")
 
     failed_visits = []
     

@@ -189,7 +189,7 @@ def filter_dataset_via_model(data):
     model.Params.DualReductions = 0 # Evita lo stato di errore (4)
     model.Params.outputFlag = 1
     #model.Params.TimeLimit = 300
-    print("-----------FILTERING DATASET-------------")
+    #print("-----------FILTERING DATASET-------------")
     model.optimize()
     
     #if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
