@@ -185,15 +185,15 @@ def milp_feasible_nodes(data, subgraph_nodes=None):
 def filter_dataset_via_model(data):
     model, x, y, x_bar = milp_feasible_nodes(data)
         
-    model.Params.MIPGap = 0.03      # Ferma il calcolo all'1% di GAP
+    model.Params.MIPGap = 0.05      # Ferma il calcolo all'5% di GAP
     model.Params.DualReductions = 0 # Evita lo stato di errore (4)
     model.Params.outputFlag = 1
     model.Params.TimeLimit = 300
     model.optimize()
     
-    if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
-        print("Error")
-        return None
+    #if model.Status != GRB.OPTIMAL and model.Status != GRB.SUBOPTIMAL:
+    #    print("Error")
+    #    return None
 
     if model.SolCount > 0:        
         saved_visits = set()
