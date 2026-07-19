@@ -33,10 +33,17 @@ patients = []
 
 def get_dataset(gt, num_patients, seed=22):
 
-    global region_mapping, group_type
-    group_type = gt
+    global region_mapping, group_type, patients, vn, va, vh, vstar, driving_matrix
+    patients = []
+    vn = []
+    va = []
+    vh = []
+    vstar = []
+    driving_matrix = {}
 
     random.seed(seed)
+
+    group_type = gt
     if group_type == "A":
         regions, weights, center_region = ["Molde", "Sekken"], [0.65, 0.35], "Molde"
 
