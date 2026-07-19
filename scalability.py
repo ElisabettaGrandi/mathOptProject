@@ -18,8 +18,8 @@ def milp_time_callback(model, where):
         model._milp_t_last = runtime
 
 def run_scalability():
-    sizes = [10,15,20]
-    group_type = "B"
+    sizes = [10, 15, 20]
+    group_type = "A"
     seed = 43
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -33,7 +33,6 @@ def run_scalability():
 
         rough_data = get_rough_data(group_type, num_pat, seed)
         #rough_data = get_rough_updated_data(group_type, num_pat, seed)
-        print(rough_data["driving_matrix"].keys())
         data = get_filtered_data(rough_data)
 
         print(f"\nSolving MILP")
