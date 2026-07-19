@@ -20,7 +20,7 @@ def milp_time_callback(model, where):
 def run_scalability():
     sizes = [10, 15, 20]
     group_type = "A"
-    seed = 43
+    seed = 30
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     csv_filename = f"scalability_results_{timestamp}_s={seed}.csv"
@@ -31,8 +31,8 @@ def run_scalability():
     for num_pat in sizes:
         print(f"Number of patients: {num_pat}")
 
-        rough_data = get_rough_data(group_type, num_pat, seed)
-        #rough_data = get_rough_updated_data(group_type, num_pat, seed)
+        #rough_data = get_rough_data(group_type, num_pat, seed)
+        rough_data = get_rough_updated_data(group_type, num_pat, seed)
         data = get_filtered_data(rough_data)
 
         print(f"\nSolving MILP")
