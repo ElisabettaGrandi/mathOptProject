@@ -203,8 +203,8 @@ def filter_dataset_via_model(data):
                 saved_visits.add(n)
 
 
-    print(f"Visite iniziali: {len(x_bar)}")
-    print(f"Visite fattibili: {len(saved_visits)}")
+    #print(f"Visite iniziali: {len(x_bar)}")
+    #print(f"Visite fattibili: {len(saved_visits)}")
 
     # applicazione del filtro
     orig_pat = data["patients"]
@@ -223,7 +223,7 @@ def filter_dataset_via_model(data):
         if all_visits:
             filt_pat.append(p)
 
-    print(f"Pazienti originali: {len(orig_pat)} -> Pazienti salvati: {len(filt_pat)}")
+    #print(f"Pazienti originali: {len(orig_pat)} -> Pazienti salvati: {len(filt_pat)}")
 
     clean_data = copy.deepcopy(data)
     clean_data["patients"] = filt_pat

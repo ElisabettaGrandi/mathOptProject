@@ -31,8 +31,8 @@ def run_scalability():
     for num_pat in sizes:
         print(f"Number of patients: {num_pat}")
 
-        #rough_data = get_rough_data(group_type, num_pat, seed)
-        rough_data = get_rough_updated_data(group_type, num_pat, seed)
+        rough_data = get_rough_data(group_type, num_pat, seed)
+        #rough_data = get_rough_updated_data(group_type, num_pat, seed)
         data = get_filtered_data(rough_data)
 
         print(f"\nSolving MILP")
